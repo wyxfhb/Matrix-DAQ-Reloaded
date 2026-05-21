@@ -1,0 +1,9 @@
+source:
+  csv_path: configs/cycles/demo.csv
+  columns:
+    time: Time
+    load: Load
+execution:
+  loops_total: 1
+  start_with_test: false
+  inter_loop_dwell_s: 0

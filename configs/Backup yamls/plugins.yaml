@@ -1,12 +1,12 @@
 selected_plugins:
-- NI_DAQ
-- LoadBank
 - EngineTest
-- Channel_Manager
-- Cycle
+- NI_DAQ
+- CCP
 - Calculated_Channels
+- Channel_Manager
 selected_displays:
 - All Channels Table
+- Main Test Monitor
 data_root: C:/Projects/Python/Matrix_v2_retry/runs
 test_cell: '0'
 data_mode: real

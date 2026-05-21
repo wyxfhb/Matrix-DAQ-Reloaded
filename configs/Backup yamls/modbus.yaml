@@ -1,0 +1,411 @@
+enabled: true
+mode: real
+recording_rate_hz: 10
+servers:
+- name: ComApp
+  host: 192.168.76.200
+  port: 502
+  unit_id: 1
+  timeout_ms: 200
+  max_retries: 3
+writes: []
+reads:
+- alias: xFQ_Gen
+  fc: 4
+  address: 1018
+  length: 1
+  data_type_input: signed
+  type: int16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 0.001
+    b: 0.0
+    unit: Hz
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xVL_Gen12
+  fc: 4
+  address: 1023
+  length: 1
+  data_type_input: unsigned
+  type: uint16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 1.0
+    b: 0.0
+    unit: V
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xVL_Gen23
+  fc: 3
+  address: 1024
+  length: 1
+  data_type_input: unsigned
+  type: uint16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 1.0
+    b: 0.0
+    unit: V
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xVL_Gen31
+  fc: 3
+  address: 1025
+  length: 1
+  data_type_input: unsigned
+  type: uint16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 1.0
+    b: 0.0
+    unit: V
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xCT_Gen1
+  fc: 3
+  address: 1026
+  length: 1
+  data_type_input: unsigned
+  type: uint16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 1.0
+    b: 0.0
+    unit: A
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xCT_Gen2
+  fc: 3
+  address: 1027
+  length: 1
+  data_type_input: unsigned
+  type: uint16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 1.0
+    b: 0.0
+    unit: A
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xCT_Gen3
+  fc: 3
+  address: 1028
+  length: 1
+  data_type_input: unsigned
+  type: uint16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 1.0
+    b: 0.0
+    unit: A
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xPO_PwnAvg
+  fc: 3
+  address: 1006
+  length: 1
+  data_type_input: signed
+  type: int16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 1.0
+    b: 0.0
+    unit: kVar
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xPO_GenAvg
+  fc: 3
+  address: 1001
+  length: 1
+  data_type_input: signed
+  type: int16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 1.0
+    b: 0.0
+    unit: kWe
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xPF_PwmAvg
+  fc: 3
+  address: 1014
+  length: 1
+  data_type_input: signed
+  type: int16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 0.001
+    b: 0.0
+    unit: PF
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xV_Bat
+  fc: 3
+  address: 1051
+  length: 1
+  data_type_input: unsigned
+  type: uint16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 0.1
+    b: 0.0
+    unit: V
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xLoad_S_kVA
+  fc: 3
+  address: 1010
+  length: 1
+  data_type_input: unsigned
+  type: uint16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 1.0
+    b: 0.0
+    unit: kVA
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+- alias: xLOad_P_kVA
+  fc: 3
+  address: 1001
+  length: 1
+  data_type_input: unsigned
+  type: uint16
+  byte_order: big
+  word_order: AB
+  scaling:
+    m: 1.0
+    b: 0.0
+    unit: kVA
+  poll_hz: 10.0
+  enabled: true
+  server: ComApp
+connection:
+  interface_type: TCP/IP
+  ip_address: 192.168.76.200
+  network_port: 502
+  com_port: COM1
+  unit_id: 1
+  baud_rate: 115200
+  serial_type: RTU
+  word_order: big
+devices:
+- name: ComApp
+  connection:
+    interface_type: TCP/IP
+    ip_address: 192.168.76.200
+    network_port: 502
+    com_port: COM1
+    unit_id: 1
+    baud_rate: 115200
+    serial_type: RTU
+    word_order: big
+  reads:
+  - alias: xFQ_Gen
+    fc: 4
+    address: 1018
+    length: 1
+    data_type_input: signed
+    type: int16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 0.001
+      b: 0.0
+      unit: Hz
+    poll_hz: 10.0
+    enabled: true
+  - alias: xVL_Gen12
+    fc: 4
+    address: 1023
+    length: 1
+    data_type_input: unsigned
+    type: uint16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+    poll_hz: 10.0
+    enabled: true
+  - alias: xVL_Gen23
+    fc: 3
+    address: 1024
+    length: 1
+    data_type_input: unsigned
+    type: uint16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+    poll_hz: 10.0
+    enabled: true
+  - alias: xVL_Gen31
+    fc: 3
+    address: 1025
+    length: 1
+    data_type_input: unsigned
+    type: uint16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+    poll_hz: 10.0
+    enabled: true
+  - alias: xCT_Gen1
+    fc: 3
+    address: 1026
+    length: 1
+    data_type_input: unsigned
+    type: uint16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: A
+    poll_hz: 10.0
+    enabled: true
+  - alias: xCT_Gen2
+    fc: 3
+    address: 1027
+    length: 1
+    data_type_input: unsigned
+    type: uint16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: A
+    poll_hz: 10.0
+    enabled: true
+  - alias: xCT_Gen3
+    fc: 3
+    address: 1028
+    length: 1
+    data_type_input: unsigned
+    type: uint16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: A
+    poll_hz: 10.0
+    enabled: true
+  - alias: xPO_PwnAvg
+    fc: 3
+    address: 1006
+    length: 1
+    data_type_input: signed
+    type: int16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: kVar
+    poll_hz: 10.0
+    enabled: true
+  - alias: xPO_GenAvg
+    fc: 3
+    address: 1001
+    length: 1
+    data_type_input: signed
+    type: int16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: kWe
+    poll_hz: 10.0
+    enabled: true
+  - alias: xPF_PwmAvg
+    fc: 3
+    address: 1014
+    length: 1
+    data_type_input: signed
+    type: int16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 0.001
+      b: 0.0
+      unit: PF
+    poll_hz: 10.0
+    enabled: true
+  - alias: xV_Bat
+    fc: 3
+    address: 1051
+    length: 1
+    data_type_input: unsigned
+    type: uint16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 0.1
+      b: 0.0
+      unit: V
+    poll_hz: 10.0
+    enabled: true
+  - alias: xLoad_S_kVA
+    fc: 3
+    address: 1010
+    length: 1
+    data_type_input: unsigned
+    type: uint16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: kVA
+    poll_hz: 10.0
+    enabled: true
+  - alias: xLOad_P_kVA
+    fc: 3
+    address: 1001
+    length: 1
+    data_type_input: unsigned
+    type: uint16
+    byte_order: big
+    word_order: AB
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: kVA
+    poll_hz: 10.0
+    enabled: true
+serial_devices: []

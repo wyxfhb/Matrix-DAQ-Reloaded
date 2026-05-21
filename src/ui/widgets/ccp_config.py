@@ -115,7 +115,7 @@ class CCPTestDialog(QDialog):
 
 class CCPConfigDialog(QDialog):
     _DEFAULT_PRIORITY = "Low Poll"
-    _MAX_DISPLAYED_A2L_ROWS = 5000
+    _CHANNEL_FILTER_DEBOUNCE_MS = 200
     _A2L_NAME_CACHE: Dict[tuple[str, int, int], Dict[str, Dict[str, Any]]] = {}
     _DAQ_DTO_PAYLOAD_BYTES = 7
     _MAX_ODT_UTILIZATION_PCT = 90
@@ -198,7 +198,11 @@ class CCPConfigDialog(QDialog):
         root.addLayout(filter_row)
         self.txt_filter = QLineEdit(self)
         self.txt_filter.setPlaceholderText("Type to filter channel names...")
-        self.txt_filter.textChanged.connect(self._apply_channel_filter)  # type: ignore
+        self._channel_filter_timer = QTimer(self)
+        self._channel_filter_timer.setSingleShot(True)
+        self._channel_filter_timer.setInterval(self._CHANNEL_FILTER_DEBOUNCE_MS)
+        self._channel_filter_timer.timeout.connect(self._apply_channel_filter)  # type: ignore
+        self.txt_filter.textChanged.connect(self._schedule_channel_filter)  # type: ignore
         root.addWidget(self.txt_filter)
 
         root.addWidget(QLabel("A2L channels"))
@@ -811,24 +815,7 @@ class CCPConfigDialog(QDialog):
     ) -> None:
         names = sorted(meta.keys())
         total = len(names)
-        cap = int(self._MAX_DISPLAYED_A2L_ROWS)
-        if total > cap:
-            selected_names = [name for name in names if name in selected]
-            visible: List[str] = []
-            seen: set[str] = set()
-            for name in selected_names + names:
-                if name in seen:
-                    continue
-                visible.append(name)
-                seen.add(name)
-                if len(visible) >= cap:
-                    break
-            names = visible
-            self.lbl_channel_status.setText(
-                f"Showing {len(names)} of {total} measurements. Use the filter to narrow large A2L files."
-            )
-        else:
-            self.lbl_channel_status.setText(f"Showing {total} measurements.")
+        self.lbl_channel_status.setText(f"Showing {total} measurements.")
         self.table_channels.setRowCount(len(names))
         for row, name in enumerate(names):
             m = dict(meta.get(name, {}))
@@ -897,6 +884,8 @@ class CCPConfigDialog(QDialog):
         return out
 
     def _apply_channel_filter(self) -> None:
+        if hasattr(self, "_channel_filter_timer") and self._channel_filter_timer.isActive():
+            self._channel_filter_timer.stop()
         q = self.txt_filter.text().strip().lower()
         show_selected = bool(self.chk_show_selected.isChecked()) if hasattr(self, "chk_show_selected") else False
         for row in range(self.table_channels.rowCount()):
@@ -916,6 +905,9 @@ class CCPConfigDialog(QDialog):
                 visible = visible and use_item is not None and use_item.checkState() == Qt.Checked
             self.table_channels.setRowHidden(row, not visible)
         self._update_priority_summary()
+
+    def _schedule_channel_filter(self, *_args: object) -> None:
+        self._channel_filter_timer.start()
 
     def _on_channel_item_changed(self, item: QTableWidgetItem) -> None:
         if item.column() == 0:

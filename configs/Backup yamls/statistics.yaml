@@ -1,0 +1,22 @@
+snapshot:
+  window_type: seconds
+  window_value: 5.0
+  capture_mode: forward
+metrics:
+  selected:
+  - mean
+  - stdev
+  - min
+  - max
+  - p2p
+manual_logging:
+  enabled: true
+automatic_logging:
+  enabled: false
+  trigger:
+    channel: null
+    comparator: '>'
+    threshold: 0.0
+    edge: rising
+channel_mode: all
+channels: []

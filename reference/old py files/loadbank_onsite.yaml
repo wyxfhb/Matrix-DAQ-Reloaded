@@ -6,9 +6,9 @@ electrical:
   phase: 3
 load_banks:
   primary:
-    model: Simplex 700kW
-    map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-700kW.yaml
-    ip_address: 127.0.0.1
+    model: Simplex 750kW
+    map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-750kW.yaml
+    ip_address: 192.168.100.1
     port: 502
     unit_id: 1
     enabled: true
@@ -22,20 +22,20 @@ load_banks:
 devices:
 - role: primary
   name: Primary
-  model: Simplex 700kW
-  map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-700kW.yaml
+  model: Simplex 750kW
+  map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-750kW.yaml
   connection:
-    host: 127.0.0.1
+    host: 192.168.100.1
     port: 502
     unit_id: 1
   enabled: true
 connection:
-  host: 127.0.0.1
+  host: 192.168.100.1
   port: 502
   unit_id: 1
 model:
-  selected: Simplex 700kW
-  map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-700kW.yaml
+  selected: Simplex 750kW
+  map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-750kW.yaml
 polling:
   default_status_poll_hz: 2
 safety:

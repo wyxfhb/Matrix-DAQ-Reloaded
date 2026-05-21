@@ -47,7 +47,7 @@ class LoadBankPlugin(BasePlugin):
         self._control_enable_ok = False
         self._last_control_enable_try_ts: float = 0.0
         self._control_values_a: list[bool] = [False, False, False]
-        self._control_dirty_a: bool = False
+        self._control_dirty_a: bool = True
         self._heartbeat_enabled: bool = False
         self._heartbeat_interval_s: float = 1.0
         self._heartbeat_state: bool = False
@@ -196,7 +196,7 @@ class LoadBankPlugin(BasePlugin):
         self._control_enable_ok = False
         self._last_control_enable_try_ts = 0.0
         self._control_values_a = [False, False, False]
-        self._control_dirty_a = False
+        self._control_dirty_a = True
         self._snapshot_values = {}
         self._heartbeat_state = False
         self._next_heartbeat_ts = 0.0
@@ -219,8 +219,6 @@ class LoadBankPlugin(BasePlugin):
         self._disconnect_client()
 
     def command_setpoint_pct(self, pct: float) -> None:
-        if not self.has_matrix_control():
-            return
         limits = (self.config.get("safety", {}) or {}).get("setpoint_limits_percent", {})
         lo = float(limits.get("min", 0.0))
         hi = float(limits.get("max", 100.0))
@@ -247,55 +245,15 @@ class LoadBankPlugin(BasePlugin):
             cur[2] = bool(master_load)
         self._control_values_a = cur
         self._control_dirty_a = True
-        if self._heartbeat_enabled and take_control is not None:
-            self._next_heartbeat_ts = 0.0
 
-    def has_matrix_control(self) -> bool:
-        """True when this Matrix UI has explicitly enabled loadbank writes."""
-        return bool(self._control_values_a[0] if self._control_values_a else False)
-
-    def matrix_control_release_blockers(self) -> list[str]:
-        blockers: list[str] = []
-        if not self.has_matrix_control():
-            return blockers
-        pending = self._pending_setpoint
-        commanded = float(pending if pending is not None else self._setpoint_val)
-        if abs(commanded) > 0.001:
-            blockers.append("commanded setpoint is not zero")
-        if len(self._control_values_a) > 1 and bool(self._control_values_a[1]):
-            blockers.append("fan power is on")
-        if len(self._control_values_a) > 2 and bool(self._control_values_a[2]):
-            blockers.append("master/apply load is on")
-        return blockers
-
-    def can_release_matrix_control(self) -> bool:
-        return not self.matrix_control_release_blockers()
-
-    def command_take_control(self, enabled: bool) -> bool:
-        if not enabled and not self.has_matrix_control():
-            return True
-        if not enabled:
-            blockers = self.matrix_control_release_blockers()
-            if blockers:
-                try:
-                    print("[WARN] LoadBank release blocked: " + "; ".join(blockers))
-                except Exception:
-                    pass
-                return False
+    def command_take_control(self, enabled: bool) -> None:
         self.set_control_enable_a(take_control=enabled)
-        return True
 
-    def command_fan_power(self, enabled: bool) -> bool:
-        if not self.has_matrix_control():
-            return False
+    def command_fan_power(self, enabled: bool) -> None:
         self.set_control_enable_a(fan_power=enabled)
-        return True
 
-    def command_master_load(self, enabled: bool) -> bool:
-        if not self.has_matrix_control():
-            return False
+    def command_master_load(self, enabled: bool) -> None:
         self.set_control_enable_a(master_load=enabled)
-        return True
 
     def simulate_step(self) -> Dict[str, Any]:
         """Return latest snapshot for real mode or simulated values for sim mode."""
@@ -388,26 +346,16 @@ class LoadBankPlugin(BasePlugin):
         conn = self._resolved_connection()
         unit_id = int(conn.get("unit_id", 1))
 
-        # First VI write block: maintain static controls. Heartbeat maps skip
-        # the heartbeat coil here because it must toggle separately.
-        control_requested = self.has_matrix_control()
-        control_write_pending = self._control_dirty_a or (control_requested and not self._control_enable_ok)
-        if control_write_pending and (now_ts - self._last_control_enable_try_ts) >= 0.2:
+        # First VI write block: keep A-bank control chain enabled (3456..3458).
+        if (not self._control_enable_ok or self._control_dirty_a) and (now_ts - self._last_control_enable_try_ts) >= 0.2:
             self._last_control_enable_try_ts = now_ts
             self._control_enable_ok = self._write_control_enable_a(unit_id)
 
         # Heartbeat coil required by some load banks (e.g., Simplex 700kW).
-        heartbeat_requested = self._heartbeat_enabled and bool(
-            self._control_values_a[0] if self._control_values_a else False
-        )
-        if heartbeat_requested and self._control_enable_ok and now_ts >= self._next_heartbeat_ts:
+        if self._heartbeat_enabled and self._control_enable_ok and now_ts >= self._next_heartbeat_ts:
             self._heartbeat_state = not self._heartbeat_state
             if self._write_heartbeat(unit_id, self._heartbeat_state):
                 self._next_heartbeat_ts = now_ts + self._heartbeat_interval_s
-        elif self._heartbeat_enabled and not heartbeat_requested:
-            self._next_heartbeat_ts = 0.0
-            if self._heartbeat_state and self._write_heartbeat(unit_id, False):
-                self._heartbeat_state = False
 
         # Rate-limited setpoint write
         if self._pending_setpoint is not None:
@@ -726,18 +674,8 @@ class LoadBankPlugin(BasePlugin):
         if not raw_vals:
             raw_vals = cmd.get("values", [True, True, True]) or [True, True, True]
         values = [bool(v) for v in list(raw_vals)]
-        hb = (self._map.get("commands", {}) or {}).get("heartbeat", {}) or {}
-        if self._heartbeat_enabled and hb:
-            try:
-                hb_address = self._address_zero_based(hb.get("address", cmd.get("address", 0)))
-                if address == hb_address and len(values) > 1:
-                    address += 1
-                    values = values[1:]
-            except Exception:
-                pass
         if not values:
-            self._control_dirty_a = False
-            return True
+            values = [True]
         try:
             if self._ctrl_diag_count < 5:
                 print(f"[LB] write_coils addr={address} (1-based={address+1}) values={values} unit={unit_id}")

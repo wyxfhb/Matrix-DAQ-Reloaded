@@ -1,0 +1,8 @@
+Controls,PLC Address,Modbus Address (coils),Modbus Data Register
+Control Heart beat(1 sec.),C500,3393,
+Fan/Control Power,C501,3394,
+Apply Load,C502,3395,
+Load to Apply to System,V5100,,42625(BCD Double)
+,,,
+,,,
+,,,

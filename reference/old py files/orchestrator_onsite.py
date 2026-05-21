@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 
 from .registry import PluginRegistry, PluginSpec
 from ..plugins.base import BasePlugin
@@ -86,7 +86,6 @@ class Orchestrator:
         self._tick_interval_s: float = 0.1
         self._global_sim_mode: bool = False
         self._source_map: Dict[str, str] = {}
-        self._display_aliases: Dict[str, str] = {}
         self._source_map_dirty: bool = True
         self._ready_acknowledged: bool = False
         self._last_ready_publish_mono: float = 0.0
@@ -251,41 +250,6 @@ class Orchestrator:
             smap[key] = "System"
 
         return smap
-
-    def _build_display_aliases(self) -> Dict[str, str]:
-        """Build UI-only full-alias -> display-label mapping."""
-        labels: Dict[str, str] = {}
-        for plugin_id in ("CCP",):
-            p = self.plugins.get(plugin_id) if self._plugin_enabled.get(plugin_id, True) else None
-            if p is None:
-                continue
-            method = getattr(p, "display_aliases", None)
-            if not callable(method):
-                continue
-            try:
-                for alias, label in method().items():
-                    alias_text = str(alias)
-                    label_text = str(label)
-                    if alias_text and label_text:
-                        labels[alias_text] = label_text
-            except Exception as exc:
-                print(f"[CORE] display_aliases: {plugin_id} query FAILED: {exc}")
-        return labels
-
-    def _refresh_source_map(self, reason: str = "") -> None:
-        """Rebuild cached display metadata used for channel placement/labels."""
-        self._source_map = self._build_source_map()
-        self._display_aliases = self._build_display_aliases()
-        reason_text = f" ({reason})" if reason else ""
-        if self._source_map:
-            groups = {}
-            for alias, grp in self._source_map.items():
-                groups.setdefault(grp, []).append(alias)
-            print(f"[CORE] source_map{reason_text}: {len(self._source_map)} aliases across {len(groups)} groups")
-            for g, aliases in sorted(groups.items()):
-                print(f"[CORE]   {g}: {len(aliases)} channels")
-        else:
-            print(f"[CORE] source_map{reason_text} is EMPTY — channels will fall to 'Other'")
 
     def _record_core_timing(
         self,
@@ -559,7 +523,16 @@ class Orchestrator:
                 except Exception:
                     return "00:00:00.000"
             _last_cycle_setpoint: Optional[float] = None
-            self._refresh_source_map("startup")
+            self._source_map = self._build_source_map()
+            if self._source_map:
+                groups = {}
+                for alias, grp in self._source_map.items():
+                    groups.setdefault(grp, []).append(alias)
+                print(f"[CORE] source_map: {len(self._source_map)} aliases across {len(groups)} groups")
+                for g, aliases in sorted(groups.items()):
+                    print(f"[CORE]   {g}: {len(aliases)} channels")
+            else:
+                print("[CORE] source_map is EMPTY — channels will fall to 'Other'")
             self._publish_core_ready(force=True)
             if run_mode == "demo":
                 for _ in range(demo_ticks):
@@ -613,7 +586,7 @@ class Orchestrator:
                         vals.update(getattr(cycle, "simulate_step")())
                         units.update(getattr(cycle, "units")())
                         _cyc_state = getattr(cycle, "_state", "idle")
-                        if lb and self._loadbank_has_matrix_control(lb) and (_cyc_state == "running" or _cyc_was_running):
+                        if lb and (_cyc_state == "running" or _cyc_was_running):
                             _sp = cycle.current_setpoint_kw()
                             if _sp != _last_cycle_setpoint:
                                 lb.command_setpoint_kw(_sp)
@@ -757,7 +730,6 @@ class Orchestrator:
                         "alarm_events": events,
                         "recording": bool(self._recording),
                         "source_map": self._source_map,
-                        "display_aliases": self._display_aliases,
                     }).encode("utf-8")
                     # One-time NI_DAQ value count diagnostic
                     try:
@@ -870,7 +842,7 @@ class Orchestrator:
                         vals.update(getattr(cycle, "simulate_step")())
                         units.update(getattr(cycle, "units")())
                         _cyc_state = getattr(cycle, "_state", "idle")
-                        if lb and self._loadbank_has_matrix_control(lb) and (_cyc_state == "running" or _cyc_was_running):
+                        if lb and (_cyc_state == "running" or _cyc_was_running):
                             _sp = cycle.current_setpoint_kw()
                             if _sp != _last_cycle_setpoint:
                                 lb.command_setpoint_kw(_sp)
@@ -1033,7 +1005,6 @@ class Orchestrator:
                         "alarm_events": events,
                         "recording": bool(self._recording),
                         "source_map": self._source_map,
-                        "display_aliases": self._display_aliases,
                     }).encode("utf-8")
                     json_ms = (time.perf_counter() - _phase_start) * 1000.0
                     _phase_start = time.perf_counter()
@@ -1199,44 +1170,6 @@ class Orchestrator:
         except Exception:
             pass
 
-    def _loadbank_has_matrix_control(self, lb: Any) -> bool:
-        try:
-            fn = getattr(lb, "has_matrix_control", None)
-            if callable(fn):
-                return bool(fn())
-        except Exception:
-            pass
-        try:
-            ctrl = getattr(lb, "_control_values_a", [False, False, False])
-            return bool(ctrl[0]) if len(ctrl) >= 1 else False
-        except Exception:
-            return False
-
-    def _loadbank_release_blockers(self, lb: Any) -> List[str]:
-        blockers: List[str] = []
-        try:
-            fn = getattr(lb, "matrix_control_release_blockers", None)
-            if callable(fn):
-                raw = fn()
-                if isinstance(raw, list):
-                    blockers.extend(str(x) for x in raw if str(x))
-        except Exception:
-            pass
-        try:
-            cycle = self.plugins.get("Cycle") if self._plugin_enabled.get("Cycle", True) else None
-            if cycle is not None:
-                state = str(getattr(cycle, "_state", "idle")).lower()
-                if state == "running":
-                    blockers.append("cycle is running")
-                elif state == "paused":
-                    sp_fn = getattr(cycle, "current_setpoint_kw", None)
-                    sp = float(sp_fn()) if callable(sp_fn) else 0.0
-                    if abs(sp) > 0.001:
-                        blockers.append("cycle is paused with active setpoint")
-        except Exception:
-            pass
-        return blockers
-
     def _handle_cycle_command(self, msg: Dict[str, Any]) -> None:
         cycle = self.plugins.get("Cycle") if self._plugin_enabled.get("Cycle", True) else None
         if cycle is None:
@@ -1246,9 +1179,6 @@ class Orchestrator:
         try:
             if cmd == "cycle_play":
                 if lb is not None:
-                    if not self._loadbank_has_matrix_control(lb):
-                        print("[WARN] Cycle play ignored: enable Matrix loadbank control first")
-                        return
                     lb.command_master_load(True)
                     print("[CYCLE->LB] Master Load enabled for cycle")
                 cycle.play()
@@ -1286,49 +1216,24 @@ class Orchestrator:
         action = str(msg.get("action", "")).strip().lower()
         try:
             if action in {"setpoint", "setpoint_kw", "setpoint_pct"}:
-                if not self._loadbank_has_matrix_control(lb):
-                    print("[WARN] LoadBank setpoint ignored: enable Matrix control first")
-                    return
                 value = float(msg.get("value", 0.0))
                 if hasattr(lb, "command_setpoint_kw"):
                     getattr(lb, "command_setpoint_kw")(value)
                 else:
                     getattr(lb, "command_setpoint_pct")(value)
             elif action == "fan_power":
-                if not self._loadbank_has_matrix_control(lb):
-                    print("[WARN] LoadBank fan command ignored: enable Matrix control first")
-                    return
                 enabled = bool(msg.get("enabled", False))
                 if hasattr(lb, "command_fan_power"):
                     getattr(lb, "command_fan_power")(enabled)
             elif action == "take_control":
                 enabled = bool(msg.get("enabled", False))
-                if not enabled and self._loadbank_has_matrix_control(lb):
-                    blockers = self._loadbank_release_blockers(lb)
-                    if blockers:
-                        print("[WARN] LoadBank release ignored: " + "; ".join(blockers))
-                        return
                 if hasattr(lb, "command_take_control"):
-                    ok = getattr(lb, "command_take_control")(enabled)
-                    if ok is False:
-                        return
+                    getattr(lb, "command_take_control")(enabled)
             elif action == "master_load":
-                if not self._loadbank_has_matrix_control(lb):
-                    print("[WARN] LoadBank master/apply command ignored: enable Matrix control first")
-                    return
                 enabled = bool(msg.get("enabled", False))
                 if hasattr(lb, "command_master_load"):
                     getattr(lb, "command_master_load")(enabled)
             elif action == "control_enable_a":
-                requested_take = msg.get("take_control")
-                if requested_take is not True and not self._loadbank_has_matrix_control(lb):
-                    print("[WARN] LoadBank control block ignored: enable Matrix control first")
-                    return
-                if requested_take is False:
-                    blockers = self._loadbank_release_blockers(lb)
-                    if blockers:
-                        print("[WARN] LoadBank release ignored: " + "; ".join(blockers))
-                        return
                 if hasattr(lb, "set_control_enable_a"):
                     getattr(lb, "set_control_enable_a")(
                         msg.get("take_control"),
@@ -1418,7 +1323,6 @@ class Orchestrator:
                     plugin.stop()
                 except Exception:
                     pass
-        self._refresh_source_map("plugin selection sync")
 
     def _apply_mode_and_restart(self, pid: str, plugin) -> None:
         """Stop, reload config with global mode override, and restart a plugin."""
@@ -1435,7 +1339,6 @@ class Orchestrator:
             status = plugin.validate()
             if getattr(status, "ok", True):
                 plugin.start()
-                self._refresh_source_map(f"mode restart {pid}")
         except Exception as e:
             print(f"[WARN] Mode restart failed for {pid}: {e}")
 
@@ -1501,7 +1404,6 @@ class Orchestrator:
                 pass
             if not self._plugin_enabled.get(plugin_id, False):
                 print(f"[INFO] Plugin '{plugin_id}' not enabled; stopped")
-                self._refresh_source_map(f"reload {plugin_id} disabled")
                 return
             try:
                 p.load_config()
@@ -1515,14 +1417,11 @@ class Orchestrator:
                 status = p.validate()
                 if not getattr(status, 'ok', True):
                     print(f"[ERROR] Reload validate failed for {plugin_id}: {getattr(status,'message','')}")
-                    self._refresh_source_map(f"reload {plugin_id} invalid")
                     return
                 p.start()
-                self._refresh_source_map(f"reload {plugin_id}")
                 print(f"[INFO] Reloaded plugin: {plugin_id}")
             except Exception as e:
                 print(f"[WARN] Reload failed for {plugin_id}: {e}")
-                self._refresh_source_map(f"reload {plugin_id} failed")
         except Exception:
             pass
 
@@ -1865,9 +1764,10 @@ class Orchestrator:
         if cycle is not None and getattr(cycle, "start_with_test", False):
             lb = self.plugins.get("LoadBank") if self._plugin_enabled.get("LoadBank", True) else None
             if lb is not None:
-                if not self._loadbank_has_matrix_control(lb):
+                ctrl = getattr(lb, "_control_values_a", [False, False, False])
+                if not (bool(ctrl[0]) if len(ctrl) >= 1 else False):
                     print("[ERROR] Cannot start recording: Cycle 'Start with Test' is enabled but "
-                          "Matrix loadbank control is not enabled. Enable it first, then try again.")
+                          "LoadBank Take Control is not active. Enable it first, then try again.")
                     return
             if lb is not None:
                 lb.command_master_load(True)

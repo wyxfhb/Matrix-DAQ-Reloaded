@@ -1,0 +1,20 @@
+Indicators,PLC Address,Modbus Address (coils),Modbus Data Register
+Failure on the System,C440,3361,
+Unit Heart beat,C441,3362,
+System IA,V5200,,42689(Floating Point)
+System IB,V5202,,42691(Floating Point)
+System IC,V5204,,42693(Floating Point)
+System W,V5206,,42695(Floating Point)
+Units Available,V5210,,42697(BCD Double)
+KW Available,V5212,,42699(BCD Double)
+,,,
+Unit VAB,V5600,,42945(Floating Point)
+Unit VBC,V5602,,42947(Floating Point)
+Unit VCA,V5604,,42949(Floating Point)
+Unit IA,V5606,,42951(Floating Point)
+Unit IB,V5610,,42953(Floating Point)
+Unit IC,V5612,,42955(Floating Point)
+Unit Watt,V5614,,42657(Floating Point)
+Unit Hz,V5616,,42659(Floating Point)
+,,,
+NOTE: All Modbus addresses are noted as PLC Addresses(Base 1).  All Control Coils should be maintained during operation.  Control Heart beat should be a 1 second heart beat and should be present any time remote modbus controls are running the unit.,,,

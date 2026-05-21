@@ -37,7 +37,7 @@ commands:
     max: 1
 
 status:
-  # Metering read block: start 2945, count 14 -> 7 float32 values (BA word order).
+  # Metering read block: start 2945, count 16 -> 8 float32 values (BA word order).
   # Channel order in VI: Vab, Vbc, Vca, Ia, Ib, Ic, kW
   voltage_ab_vrms:
     fc: 3

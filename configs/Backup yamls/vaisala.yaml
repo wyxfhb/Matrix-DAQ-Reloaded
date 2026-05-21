@@ -1,0 +1,60 @@
+enabled: true
+mode: real
+connection:
+  host: 192.168.76.61
+  port: 502
+  unit_id: 1
+  timeout_ms: 1000
+  poll_rate_hz: 1
+  word_order: little    # little (HMT330 factory default) | big (word-swapped)
+model:
+  selected: HMT330
+channels:
+- id: RH
+  alias: vHM_Amb
+  enabled: true
+- id: T
+  alias: vTP_Amb
+  enabled: true
+- id: Td
+  alias: vTP_AmbDew
+  enabled: true
+- id: Tdf
+  alias: ''
+  enabled: false
+- id: a
+  alias: vHM_AmbAbs
+  enabled: true
+- id: x
+  alias: vOT_Mix
+  enabled: true
+- id: Tw
+  alias: vTP_AmbWet
+  enabled: true
+- id: H2Ov
+  alias: ''
+  enabled: false
+- id: pw
+  alias: ''
+  enabled: false
+- id: pws
+  alias: ''
+  enabled: false
+- id: H
+  alias: ''
+  enabled: false
+- id: dT
+  alias: ''
+  enabled: false
+- id: H2Ow
+  alias: ''
+  enabled: false
+pressure:
+  mode: fixed
+  fixed_value_hpa: 1013.25
+  dynamic:
+    source_channel: WS_AmbientTemp
+    source_unit: hPa
+    gain: 1.0
+    offset: 0.0
+filtering: none

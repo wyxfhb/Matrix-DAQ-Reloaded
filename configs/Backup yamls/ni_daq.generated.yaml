@@ -1,0 +1,755 @@
+mode: real
+recording_rate_hz: 20.0
+
+acquisition:
+  threaded_fast_ai: true
+  read_timeout_margin_s: 1.0
+  temperature:
+    adc_timing_mode: default
+    auto_zero: default
+    sample_rate_hz: 4
+
+health:
+  poll_hz: 2
+  read_fail_warn_threshold: 10
+  read_fail_fault_threshold: 30
+  expose_status_channels: true
+
+decimation:
+  filter: IIR_Butterworth
+  cutoff_hz: auto
+
+channels:
+  ai_voltage:
+  - phys: AGENTMod1/ai0
+    alias: AGENTMod1_ai0
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod1/ai1
+    alias: AGENTMod1_ai1
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod1/ai2
+    alias: AGENTMod1_ai2
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod1/ai3
+    alias: AGENTMod1_ai3
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod2/ai0
+    alias: AGENTMod2_ai0
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod2/ai1
+    alias: AGENTMod2_ai1
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod2/ai2
+    alias: AGENTMod2_ai2
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod2/ai3
+    alias: AGENTMod2_ai3
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod3/ai0
+    alias: AGENTMod3_ai0
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod3/ai1
+    alias: AGENTMod3_ai1
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod3/ai2
+    alias: AGENTMod3_ai2
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod3/ai3
+    alias: AGENTMod3_ai3
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod4/ai0
+    alias: AGENTMod4_ai0
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod4/ai1
+    alias: AGENTMod4_ai1
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod4/ai2
+    alias: AGENTMod4_ai2
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod4/ai3
+    alias: AGENTMod4_ai3
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod5/ai0
+    alias: AGENTMod5_ai0
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod5/ai1
+    alias: AGENTMod5_ai1
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod5/ai2
+    alias: AGENTMod5_ai2
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: AGENTMod5/ai3
+    alias: AGENTMod5_ai3
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: MATRIXMod3/ai0
+    alias: MATRIXMod3_ai0
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: MATRIXMod3/ai1
+    alias: MATRIXMod3_ai1
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: MATRIXMod3/ai2
+    alias: MATRIXMod3_ai2
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: MATRIXMod3/ai3
+    alias: MATRIXMod3_ai3
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: MATRIXMod4/ai0
+    alias: MATRIXMod4_ai0
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: MATRIXMod4/ai1
+    alias: MATRIXMod4_ai1
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: MATRIXMod4/ai2
+    alias: MATRIXMod4_ai2
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  - phys: MATRIXMod4/ai3
+    alias: MATRIXMod4_ai3
+    enabled: false
+    range_v:
+      min: 0
+      max: 10
+    scaling:
+      m: 1.0
+      b: 0.0
+      unit: V
+  ai_temp:
+  - phys: AGENTMod7/ai0
+    alias: AGENTMod7_ai0
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod7/ai1
+    alias: AGENTMod7_ai1
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod7/ai2
+    alias: AGENTMod7_ai2
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod7/ai3
+    alias: AGENTMod7_ai3
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod7/ai4
+    alias: AGENTMod7_ai4
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod7/ai5
+    alias: AGENTMod7_ai5
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod7/ai6
+    alias: AGENTMod7_ai6
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod7/ai7
+    alias: AGENTMod7_ai7
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod8/ai0
+    alias: AGENTMod8_ai0
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod8/ai1
+    alias: AGENTMod8_ai1
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod8/ai2
+    alias: AGENTMod8_ai2
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: AGENTMod8/ai3
+    alias: AGENTMod8_ai3
+    enabled: false
+    sensor:
+      type: RTD
+      subtype: PT100
+      wires: 3
+    unit: C
+  - phys: MATRIXMod1/ai0
+    alias: MATRIXMod1_ai0
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai1
+    alias: MATRIXMod1_ai1
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai2
+    alias: MATRIXMod1_ai2
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai3
+    alias: MATRIXMod1_ai3
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai4
+    alias: MATRIXMod1_ai4
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai5
+    alias: MATRIXMod1_ai5
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai6
+    alias: MATRIXMod1_ai6
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai7
+    alias: MATRIXMod1_ai7
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai8
+    alias: MATRIXMod1_ai8
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai9
+    alias: MATRIXMod1_ai9
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai10
+    alias: MATRIXMod1_ai10
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai11
+    alias: MATRIXMod1_ai11
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai12
+    alias: MATRIXMod1_ai12
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai13
+    alias: MATRIXMod1_ai13
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai14
+    alias: MATRIXMod1_ai14
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod1/ai15
+    alias: MATRIXMod1_ai15
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai0
+    alias: MATRIXMod2_ai0
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai1
+    alias: MATRIXMod2_ai1
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai2
+    alias: MATRIXMod2_ai2
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai3
+    alias: MATRIXMod2_ai3
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai4
+    alias: MATRIXMod2_ai4
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai5
+    alias: MATRIXMod2_ai5
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai6
+    alias: MATRIXMod2_ai6
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai7
+    alias: MATRIXMod2_ai7
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai8
+    alias: MATRIXMod2_ai8
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai9
+    alias: MATRIXMod2_ai9
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai10
+    alias: MATRIXMod2_ai10
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai11
+    alias: MATRIXMod2_ai11
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai12
+    alias: MATRIXMod2_ai12
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai13
+    alias: MATRIXMod2_ai13
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai14
+    alias: MATRIXMod2_ai14
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  - phys: MATRIXMod2/ai15
+    alias: MATRIXMod2_ai15
+    enabled: false
+    sensor:
+      type: TC
+      subtype: K
+    unit: C
+  di:
+  - phys: MATRIXMod6/port0/line0
+    alias: MATRIXMod6_port0_line0
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line1
+    alias: MATRIXMod6_port0_line1
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line2
+    alias: MATRIXMod6_port0_line2
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line3
+    alias: MATRIXMod6_port0_line3
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line4
+    alias: MATRIXMod6_port0_line4
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line5
+    alias: MATRIXMod6_port0_line5
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line6
+    alias: MATRIXMod6_port0_line6
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line7
+    alias: MATRIXMod6_port0_line7
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line8
+    alias: MATRIXMod6_port0_line8
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line9
+    alias: MATRIXMod6_port0_line9
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line10
+    alias: MATRIXMod6_port0_line10
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line11
+    alias: MATRIXMod6_port0_line11
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line12
+    alias: MATRIXMod6_port0_line12
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line13
+    alias: MATRIXMod6_port0_line13
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line14
+    alias: MATRIXMod6_port0_line14
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port0/line15
+    alias: MATRIXMod6_port0_line15
+    enabled: false
+    initial: 0
+  do:
+  - phys: MATRIXMod6/port1/line0
+    alias: MATRIXMod6_port1_line0
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line1
+    alias: MATRIXMod6_port1_line1
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line2
+    alias: MATRIXMod6_port1_line2
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line3
+    alias: MATRIXMod6_port1_line3
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line4
+    alias: MATRIXMod6_port1_line4
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line5
+    alias: MATRIXMod6_port1_line5
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line6
+    alias: MATRIXMod6_port1_line6
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line7
+    alias: MATRIXMod6_port1_line7
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line8
+    alias: MATRIXMod6_port1_line8
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line9
+    alias: MATRIXMod6_port1_line9
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line10
+    alias: MATRIXMod6_port1_line10
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line11
+    alias: MATRIXMod6_port1_line11
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line12
+    alias: MATRIXMod6_port1_line12
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line13
+    alias: MATRIXMod6_port1_line13
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line14
+    alias: MATRIXMod6_port1_line14
+    enabled: false
+    initial: 0
+  - phys: MATRIXMod6/port1/line15
+    alias: MATRIXMod6_port1_line15
+    enabled: false
+    initial: 0
+  ao: []

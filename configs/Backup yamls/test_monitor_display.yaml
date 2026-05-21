@@ -1,0 +1,41 @@
+plot:
+  time_window: 60s
+  channels:
+  - alias: qPR_Amb
+    y_axis: 1
+    color: '#1f77b4'
+  axis_ranges:
+    '1':
+      auto: true
+      min: 0.0
+      max: 100.0
+      name: ''
+    '2':
+      auto: true
+      min: 0.0
+      max: 100.0
+      name: ''
+    '3':
+      auto: true
+      min: 0.0
+      max: 100.0
+      name: ''
+    '4':
+      auto: true
+      min: 0.0
+      max: 100.0
+      name: ''
+watch_channels:
+- emasterIAT
+- emasterVbat
+- emasterVsw
+- qPR_Amb
+- qPR_Ccs
+standard_overrides:
+  speed_aliases:
+  - cSP_Eng
+  - emasterrpm
+  - eslaverpm
+  power_aliases:
+  - xPO_GenAvg
+  - lPO_LdbAct

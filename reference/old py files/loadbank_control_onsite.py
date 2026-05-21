@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -69,19 +68,10 @@ class LoadBankControlPanel(QWidget):
         self._primary_model = "—"
         self._secondary_model = "—"
         self._sp_max = 2000.0
-        self._heartbeat_capable = False
-        self._heartbeat_aliases: List[str] = []
-        self._heartbeat_last_value: Optional[bool] = None
-        self._heartbeat_last_change_ts = 0.0
         self._cycle_schedule: List[Tuple[float, float]] = []
         self._cycle_duration_s: float = 0.0
         self._cycle_loops_total: int = 1
         self._cycle_dwell_s: float = 0.0
-        self._cmd_fan_power = False
-        self._cmd_master_load = False
-        self._cmd_setpoint_kw = 0.0
-        self._cycle_state_int = 0
-        self._cycle_setpoint_kw = 0.0
         self._load_config_meta()
         self._build_ui()
 
@@ -112,115 +102,7 @@ class LoadBankControlPanel(QWidget):
             self._sp_max = float(lim.get("max", self._sp_max))
         except Exception:
             pass
-        self._load_heartbeat_meta()
         self._load_cycle_schedule()
-
-    def _load_heartbeat_meta(self) -> None:
-        self._heartbeat_capable = False
-        self._heartbeat_aliases = []
-        self._heartbeat_last_value = None
-        self._heartbeat_last_change_ts = 0.0
-
-        lb_block = self._cfg.get("load_banks") or {}
-        primary = (lb_block.get("primary") or {}) if isinstance(lb_block, dict) else {}
-        map_file = ""
-        if isinstance(primary, dict):
-            map_file = str(primary.get("map_file") or "")
-        if not map_file:
-            map_file = str(((self._cfg.get("model") or {}).get("map_file")) or "")
-        if not map_file:
-            return
-
-        root_dir = Path(__file__).resolve().parents[3]
-        configs_dir = root_dir / "configs"
-        mf = Path(map_file)
-        candidates = [mf, (configs_dir / mf).resolve(), (root_dir / mf).resolve()]
-        data: Dict[str, Any] = {}
-        try:
-            import yaml  # type: ignore
-            for candidate in candidates:
-                if candidate.exists():
-                    data = yaml.safe_load(candidate.read_text(encoding="utf-8")) or {}
-                    break
-        except Exception:
-            data = {}
-
-        commands = data.get("commands") or {}
-        if isinstance(commands, dict) and isinstance(commands.get("heartbeat"), dict):
-            self._heartbeat_capable = True
-
-        status = data.get("status") or {}
-        if isinstance(status, dict):
-            for key, cfg in status.items():
-                if not isinstance(cfg, dict):
-                    continue
-                alias = str(cfg.get("alias") or key)
-                if "heartbeat" in str(key).lower() or "heartbeat" in alias.lower():
-                    self._heartbeat_aliases.append(alias)
-
-        if self._heartbeat_capable and not self._heartbeat_aliases:
-            self._heartbeat_aliases.append("LB700/UnitHeartbeat")
-
-    def _refresh_control_labels(self) -> None:
-        if hasattr(self, "_btn_take"):
-            label = "Enable Matrix Remote Control" if self._heartbeat_capable else "Enable Matrix Control"
-            self._btn_take.setText(label)
-        if hasattr(self, "_lbl_heartbeat") and not self._heartbeat_capable:
-            self._lbl_heartbeat.setText("N/A")
-            self._lbl_heartbeat.setStyleSheet("color: #888;")
-        self._refresh_control_enabled_states()
-
-    def _matrix_control_enabled(self) -> bool:
-        return bool(getattr(self, "_btn_take", None) is not None and self._btn_take.isChecked())
-
-    def _set_control_note(self, text: str, warn: bool = False) -> None:
-        lbl = getattr(self, "_lbl_control_note", None)
-        if lbl is None:
-            return
-        lbl.setText(text)
-        color = "#f39c12" if warn else "#888"
-        lbl.setStyleSheet(f"color: {color}; font-size: 10px;")
-
-    def _control_release_blockers(self) -> List[str]:
-        blockers: List[str] = []
-        if abs(float(self._cmd_setpoint_kw)) > 0.001:
-            blockers.append("setpoint is not zero")
-        if self._cmd_master_load:
-            blockers.append("Master/Apply Load is on")
-        if self._cmd_fan_power:
-            blockers.append("Fan Power is on")
-        if self._cycle_state_int == 1:
-            blockers.append("cycle is running")
-        elif self._cycle_state_int == 2 and abs(float(self._cycle_setpoint_kw)) > 0.001:
-            blockers.append("cycle is paused with active setpoint")
-        return blockers
-
-    def _refresh_control_enabled_states(self) -> None:
-        owned = self._matrix_control_enabled()
-        for attr in ("_btn_fan", "_spin_kw", "_btn_apply", "_btn_estop", "_btn_cyc_play"):
-            widget = getattr(self, attr, None)
-            if widget is not None:
-                widget.setEnabled(owned)
-        if hasattr(self, "_lbl_control_note"):
-            if owned:
-                self._set_control_note("Matrix control enabled. Return loadbank to idle before releasing.")
-            else:
-                self._set_control_note("Matrix control disabled: telemetry/read-only.")
-
-    def _apply_cycle_schedule_to_widgets(self) -> None:
-        if hasattr(self, "_spin_seek"):
-            self._spin_seek.setRange(0.0, max(1.0, self._cycle_duration_s))
-        if self._cycle_chart is None:
-            return
-        if self._cycle_schedule and self._cycle_duration_s > 0:
-            self._cycle_chart.set_schedule(
-                self._cycle_schedule,
-                self._cycle_duration_s,
-                loops=self._cycle_loops_total,
-                dwell_s=self._cycle_dwell_s,
-            )
-        elif hasattr(self._cycle_chart, "clear_schedule"):
-            self._cycle_chart.clear_schedule()
 
     def _load_cycle_schedule(self) -> None:
         """Read cycle.yaml to get the schedule CSV for the chart widget."""
@@ -284,8 +166,13 @@ class LoadBankControlPanel(QWidget):
         self._lbl_primary.setText(f"Primary: {self._primary_model}")
         self._lbl_secondary.setText(f"Secondary: {self._secondary_model}")
         self._spin_kw.setRange(0.0, max(1.0, self._sp_max))
-        self._refresh_control_labels()
-        self._apply_cycle_schedule_to_widgets()
+        if self._cycle_chart is not None and self._cycle_schedule and self._cycle_duration_s > 0:
+            self._cycle_chart.set_schedule(
+                self._cycle_schedule,
+                self._cycle_duration_s,
+                loops=self._cycle_loops_total,
+                dwell_s=self._cycle_dwell_s,
+            )
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -317,7 +204,6 @@ class LoadBankControlPanel(QWidget):
         self._btn_take = QPushButton("Take Control")
         self._btn_take.setCheckable(True)
         self._btn_take.clicked.connect(self._on_take_control)  # type: ignore
-        self._refresh_control_labels()
         self._btn_fan = QPushButton("Fan Power")
         self._btn_fan.setCheckable(True)
         self._btn_fan.clicked.connect(self._on_fan_power)  # type: ignore
@@ -328,9 +214,10 @@ class LoadBankControlPanel(QWidget):
         form = QFormLayout()
         self._spin_kw = QDoubleSpinBox()
         self._spin_kw.setRange(0.0, max(1.0, self._sp_max))
-        self._spin_kw.setDecimals(0)
+        self._spin_kw.setDecimals(1)
+        self._spin_kw.setSuffix(" kW")
         self._spin_kw.setSingleStep(1.0)
-        form.addRow("Load setpoint (kW)", self._spin_kw)
+        form.addRow("Load setpoint", self._spin_kw)
 
         row_apply = QHBoxLayout()
         self._btn_apply = QPushButton("Apply Load")
@@ -342,10 +229,6 @@ class LoadBankControlPanel(QWidget):
         row_apply.addWidget(self._btn_estop)
         gcv.addLayout(form)
         gcv.addLayout(row_apply)
-        self._lbl_control_note = QLabel("Matrix control disabled: telemetry/read-only.")
-        self._lbl_control_note.setWordWrap(True)
-        self._lbl_control_note.setStyleSheet("color: #888; font-size: 10px;")
-        gcv.addWidget(self._lbl_control_note)
         root.addWidget(gb_ctl)
 
         # Readback
@@ -360,8 +243,6 @@ class LoadBankControlPanel(QWidget):
         self._lbl_kw = QLabel("—")
         self._lbl_freq = QLabel("—")
         self._lbl_fan = QLabel("—")
-        self._lbl_heartbeat = QLabel("N/A")
-        self._lbl_heartbeat.setStyleSheet("color: #888;")
         grid.addWidget(QLabel("Vab"), 0, 0)
         grid.addWidget(self._lbl_vab, 0, 1)
         grid.addWidget(QLabel("Ia"), 0, 2)
@@ -379,10 +260,7 @@ class LoadBankControlPanel(QWidget):
         grid.addWidget(QLabel("Freq"), 3, 2)
         grid.addWidget(self._lbl_freq, 3, 3)
         grid.addWidget(QLabel("Fan"), 4, 0)
-        grid.addWidget(self._lbl_fan, 4, 1)
-        grid.addWidget(QLabel("Heartbeat"), 4, 2)
-        grid.addWidget(self._lbl_heartbeat, 4, 3)
-        self._refresh_control_labels()
+        grid.addWidget(self._lbl_fan, 4, 1, 1, 3)
         root.addWidget(gb_rb)
 
         # Cycle Control
@@ -421,6 +299,13 @@ class LoadBankControlPanel(QWidget):
         if CycleChartWidget is not None:
             self._cycle_chart = CycleChartWidget()
             self._cycle_chart.setFixedHeight(120)
+            if self._cycle_schedule and self._cycle_duration_s > 0:
+                self._cycle_chart.set_schedule(
+                    self._cycle_schedule,
+                    self._cycle_duration_s,
+                    loops=self._cycle_loops_total,
+                    dwell_s=self._cycle_dwell_s,
+                )
             cyc_v.addWidget(self._cycle_chart)
         else:
             self._cycle_chart = None
@@ -457,8 +342,6 @@ class LoadBankControlPanel(QWidget):
 
         root.addWidget(gb_cyc)
         root.addStretch(1)
-        self._apply_cycle_schedule_to_widgets()
-        self._refresh_control_enabled_states()
 
     def set_bus(self, bus: Any) -> None:
         """Inject IPC control path (dict from create_ui_control_push) or None to lazy-connect."""
@@ -548,44 +431,10 @@ class LoadBankControlPanel(QWidget):
             self._lbl_fan.setText("—")
             self._lbl_fan.setStyleSheet("")
 
-        if not self._heartbeat_capable:
-            self._lbl_heartbeat.setText("N/A")
-            self._lbl_heartbeat.setStyleSheet("color: #888;")
-        else:
-            hb_v = _pick_value(
-                vals,
-                self._heartbeat_aliases,
-                ["lb700/unitheartbeat", "unitheartbeat", "unit heartbeat"],
-            )
-            if hb_v is None:
-                self._lbl_heartbeat.setText("—")
-                self._lbl_heartbeat.setStyleSheet("")
-            else:
-                try:
-                    on = bool(int(float(hb_v)))
-                    now = time.monotonic()
-                    if self._heartbeat_last_value is None:
-                        self._heartbeat_last_change_ts = now
-                    elif on != self._heartbeat_last_value:
-                        self._heartbeat_last_change_ts = now
-                    self._heartbeat_last_value = on
-
-                    state = "HIGH" if on else "LOW"
-                    if self._heartbeat_last_change_ts and (now - self._heartbeat_last_change_ts) <= 3.0:
-                        self._lbl_heartbeat.setText(f"Pulsing ({state})")
-                        self._lbl_heartbeat.setStyleSheet("color: #2ecc71; font-weight: 600;")
-                    else:
-                        self._lbl_heartbeat.setText(f"No pulse ({state})")
-                        self._lbl_heartbeat.setStyleSheet("color: #f39c12; font-weight: 600;")
-                except Exception:
-                    self._lbl_heartbeat.setText("—")
-                    self._lbl_heartbeat.setStyleSheet("")
-
         # Cycle telemetry
         cyc_state_val = vals.get("Cycle/state")
         if cyc_state_val is not None:
             state_int = int(float(cyc_state_val))
-            self._cycle_state_int = state_int
             state_name = self._STATE_NAMES.get(state_int, "Unknown")
             self._lbl_cyc_state.setText(f"State: {state_name}")
             colors = {0: "#888", 1: "#2ecc71", 2: "#f39c12", 3: "#3498db"}
@@ -610,8 +459,7 @@ class LoadBankControlPanel(QWidget):
 
         cyc_sp = vals.get("Cycle/setpoint_kw")
         if cyc_sp is not None:
-            self._cycle_setpoint_kw = float(cyc_sp)
-            self._lbl_cyc_sp.setText(f"Setpoint: {float(cyc_sp):.0f} kW")
+            self._lbl_cyc_sp.setText(f"Setpoint: {float(cyc_sp):.1f} kW")
 
         cyc_loop = vals.get("Cycle/loop_current")
         cyc_total = vals.get("Cycle/loop_total")
@@ -648,46 +496,19 @@ class LoadBankControlPanel(QWidget):
 
     def _on_take_control(self) -> None:
         en = bool(self._btn_take.isChecked())
-        if not en:
-            blockers = self._control_release_blockers()
-            if blockers:
-                self._btn_take.blockSignals(True)
-                self._btn_take.setChecked(True)
-                self._btn_take.blockSignals(False)
-                self._set_control_note("Cannot release Matrix control: " + "; ".join(blockers), warn=True)
-                self._refresh_control_enabled_states()
-                return
         self._send({"type": "loadbank_command", "action": "take_control", "enabled": en})
-        self._refresh_control_enabled_states()
 
     def _on_fan_power(self) -> None:
-        if not self._matrix_control_enabled():
-            self._btn_fan.blockSignals(True)
-            self._btn_fan.setChecked(False)
-            self._btn_fan.blockSignals(False)
-            self._set_control_note("Enable Matrix control before changing Fan Power.", warn=True)
-            return
         en = bool(self._btn_fan.isChecked())
-        self._cmd_fan_power = en
         self._send({"type": "loadbank_command", "action": "fan_power", "enabled": en})
 
     def _on_apply_load(self) -> None:
-        if not self._matrix_control_enabled():
-            self._set_control_note("Enable Matrix control before applying load.", warn=True)
-            return
         self._send({"type": "loadbank_command", "action": "master_load", "enabled": True})
         kw = float(self._spin_kw.value())
-        self._cmd_master_load = True
-        self._cmd_setpoint_kw = kw
         self._send({"type": "loadbank_command", "action": "setpoint_kw", "value": kw})
 
     def _on_zero_load(self) -> None:
-        if not self._matrix_control_enabled():
-            self._set_control_note("Enable Matrix control before sending Zero Load.", warn=True)
-            return
         self._spin_kw.setValue(0.0)
-        self._cmd_setpoint_kw = 0.0
-        self._cmd_master_load = False
         self._send({"type": "loadbank_command", "action": "setpoint_kw", "value": 0.0})
         self._send({"type": "loadbank_command", "action": "master_load", "enabled": False})
 
@@ -695,10 +516,6 @@ class LoadBankControlPanel(QWidget):
         self._send({"type": "cycle_set_start_with_test", "enabled": checked})
 
     def _on_cycle_play(self) -> None:
-        if not self._matrix_control_enabled():
-            self._set_control_note("Enable Matrix control before starting the cycle.", warn=True)
-            return
-        self._cmd_master_load = True
         self._send({"type": "cycle_play"})
 
     def _on_cycle_pause(self) -> None:

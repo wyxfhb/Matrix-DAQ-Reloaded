@@ -60,6 +60,7 @@ class ConsoleWindow(QMainWindow):
         self._locked: bool = False
         self._prev_rec: bool = False
         self._plugin_config_ok_cache: Dict[str, bool] = {}
+        self._console_compact_width = self.width()
         # Optional Phase 1 UI performance diagnostics (off unless explicitly enabled).
         self._perf_diag_enabled = str(os.environ.get("MATRIX_UI_PERF_DIAG", "")).strip().lower() in {
             "1",
@@ -306,10 +307,11 @@ class ConsoleWindow(QMainWindow):
                     | Qt.BottomDockWidgetArea
                 )
                 dock.setWidget(self._lb_panel_main)
-                dock.setMinimumWidth(320)
+                dock.setMinimumWidth(0)
                 self.addDockWidget(Qt.RightDockWidgetArea, dock)
                 dock.hide()
                 dock.visibilityChanged.connect(self._on_lb_dock_visibility_changed)  # type: ignore
+                dock.topLevelChanged.connect(self._on_lb_dock_top_level_changed)  # type: ignore
                 self._lb_dock = dock
 
         # Periodic UI refresh
@@ -756,8 +758,9 @@ class ConsoleWindow(QMainWindow):
                 return
             try:
                 dlg = CycleConfigDialog(self)
-                dlg.exec()
-                self._refresh_plugin_config_ok("Cycle")
+                if dlg.exec() == QDialog.Accepted:
+                    self._refresh_plugin_config_ok("Cycle")
+                    self._refresh_loadbank_config()
             except Exception as e:
                 try:
                     QMessageBox.critical(self, "Cycle Configure Error", f"Failed to open Cycle config dialog:\n{e}")
@@ -783,11 +786,35 @@ class ConsoleWindow(QMainWindow):
             btn.blockSignals(True)
             btn.setChecked(bool(visible))
             btn.blockSignals(False)
+        if visible:
+            dock = getattr(self, "_lb_dock", None)
+            if dock is not None and not dock.isFloating():
+                self._console_compact_width = min(self.width(), int(getattr(self, "_console_compact_width", self.width())))
+                dock.setMinimumWidth(320)
+        else:
+            self._restore_console_compact_width()
+
+    def _on_lb_dock_top_level_changed(self, floating: bool) -> None:
+        dock = getattr(self, "_lb_dock", None)
+        if dock is not None:
+            dock.setMinimumWidth(0 if floating else 320)
+        if floating:
+            self._restore_console_compact_width()
+
+    def _restore_console_compact_width(self) -> None:
+        dock = getattr(self, "_lb_dock", None)
+        if dock is not None and (not dock.isVisible() or dock.isFloating()):
+            dock.setMinimumWidth(0)
+        target_w = int(getattr(self, "_console_compact_width", 336) or 336)
+        target_w = max(260, min(target_w, 420))
+        self.resize(target_w, self.height())
 
     def _show_loadbank_operator_dock(self, visible: bool) -> None:
         dock = getattr(self, "_lb_dock", None)
         if dock is None:
             return
+        if visible and not dock.isVisible():
+            self._console_compact_width = min(self.width(), int(getattr(self, "_console_compact_width", self.width())))
         dock.setVisible(bool(visible))
         btn = getattr(self, "btn_loadbank_panel", None)
         if btn is not None and btn.isChecked() != bool(visible):

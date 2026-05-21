@@ -67,6 +67,15 @@ class CycleChartWidget(QWidget):
             self._max_kw = 100.0
         self.update()
 
+    def clear_schedule(self) -> None:
+        self._schedule = []
+        self._profile_t = []
+        self._profile_v = []
+        self._loop_boundaries_s = []
+        self._duration_s = 1.0
+        self._position_s = 0.0
+        self.update()
+
     def set_position(self, position_s: float) -> None:
         self._position_s = max(0.0, position_s)
         self.update()

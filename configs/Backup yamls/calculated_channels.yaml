@@ -51,7 +51,7 @@ channels:
 
     #https://www.engineeringtoolbox.com/water-vapor-saturation-pressure-air-d_689.html
 
-    psx = (exp(77.345+0.0057*tempK-7235/tempK)/(tempK**8.2))
+    psx = (exp(77.345+0.0057*tempK-7235/tempK)/(tempK^8.2))
 
 
     #Dry air inlet pressure
@@ -61,7 +61,7 @@ channels:
 
     #Correction Factor
 
-    CF = 1.18*((99000/bdo)*((tempK)/298)**0.5)-0.18
+    CF = 1.18*((99000/bdo)*((tempK)/298)^0.5)-0.18
 
 
     #Corrected Power
@@ -74,47 +74,3 @@ channels:
   - var: bpc
     alias: mPO_PwrCor
     unit: kW
-- name: WP17 Mech Power
-  enabled: true
-  symbols:
-    pwr: xPO_GenAvg
-    frq: xFQ_Gen
-    speed: emasterrpm
-  body: 'alteff = (-0.00018407 * pwr ** 2 + 0.0858 * pwr) if (38 <= frq <= 54.999)
-    else ((-0.00006868 * pwr ** 2 + 0.04685112 * pwr + 88.44023169) if (55 <= frq
-    <= 65) else 0)
-
-
-    fanpwr = 16.49 if (38 <= frq <= 54.999) else (31 if (55 <= frq <= 65) else 0)
-
-
-    altpwr = (1 - (alteff * 0.01)) * pwr
-
-    engalt = 2.28
-
-    mechpwr = kwe + fanpwr + altpwr + engalt
-
-    mechtrq = (mechpwr * 9548.8) / speed if speed != 0 else 0
-
-    pi = 3.141592653589793
-
-    bmep = (mechtrq * 4 * pi) / 1670'
-  outputs:
-  - var: alteff
-    alias: mPC_AltAct
-    unit: frac
-  - var: fanpwr
-    alias: mPO_Fan
-    unit: kWe
-  - var: altpwr
-    alias: mPO_Alt
-    unit: kWe
-  - var: mechpwr
-    alias: mPO_Eng
-    unit: kWm
-  - var: mechtrq
-    alias: mTQ_Eng
-    unit: Nm
-  - var: bmep
-    alias: xPO_BMEPRAW
-    unit: Bar
