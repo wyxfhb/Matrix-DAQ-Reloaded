@@ -1,10 +1,10 @@
 selected_plugins:
-- NI_DAQ
-- LoadBank
-- EngineTest
 - Channel_Manager
 - Cycle
+- EngineTest
 - Calculated_Channels
+- NI_DAQ
+- LoadBank
 selected_displays:
 - All Channels Table
 data_root: C:/Projects/Python/Matrix_v2_retry/runs
