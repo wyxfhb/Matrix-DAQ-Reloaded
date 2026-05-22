@@ -1,9 +1,10 @@
 selected_plugins:
-- Channel_Manager
-- Cycle
-- EngineTest
-- Calculated_Channels
+- CCP
 - NI_DAQ
+- Cycle
+- Calculated_Channels
+- Channel_Manager
+- EngineTest
 - LoadBank
 selected_displays:
 - All Channels Table

@@ -27,8 +27,11 @@ except Exception:
 
 try:
     from .cycle_chart import CycleChartWidget
+    from .cycle_profile_math import CyclePlotSeries, build_expanded_cycle_profiles
 except Exception:
     CycleChartWidget = None  # type: ignore
+    CyclePlotSeries = None  # type: ignore
+    build_expanded_cycle_profiles = None  # type: ignore
 
 
 def _coerce_float(v: Any) -> Optional[float]:
@@ -74,9 +77,11 @@ class LoadBankControlPanel(QWidget):
         self._heartbeat_last_value: Optional[bool] = None
         self._heartbeat_last_change_ts = 0.0
         self._cycle_schedule: List[Tuple[float, float]] = []
+        self._cycle_series: List[Any] = []
+        self._cycle_loop_boundaries: List[float] = []
         self._cycle_duration_s: float = 0.0
         self._cycle_loops_total: int = 1
-        self._cycle_dwell_s: float = 0.0
+        self._cycle_has_loadbank_output: bool = True
         self._cmd_fan_power = False
         self._cmd_master_load = False
         self._cmd_setpoint_kw = 0.0
@@ -189,18 +194,21 @@ class LoadBankControlPanel(QWidget):
             blockers.append("Master/Apply Load is on")
         if self._cmd_fan_power:
             blockers.append("Fan Power is on")
-        if self._cycle_state_int == 1:
+        if self._cycle_has_loadbank_output and self._cycle_state_int == 1:
             blockers.append("cycle is running")
-        elif self._cycle_state_int == 2 and abs(float(self._cycle_setpoint_kw)) > 0.001:
+        elif self._cycle_has_loadbank_output and self._cycle_state_int == 2 and abs(float(self._cycle_setpoint_kw)) > 0.001:
             blockers.append("cycle is paused with active setpoint")
         return blockers
 
     def _refresh_control_enabled_states(self) -> None:
         owned = self._matrix_control_enabled()
-        for attr in ("_btn_fan", "_spin_kw", "_btn_apply", "_btn_estop", "_btn_cyc_play"):
+        for attr in ("_btn_fan", "_spin_kw", "_btn_apply", "_btn_estop"):
             widget = getattr(self, attr, None)
             if widget is not None:
                 widget.setEnabled(owned)
+        cyc_play = getattr(self, "_btn_cyc_play", None)
+        if cyc_play is not None:
+            cyc_play.setEnabled(owned or not self._cycle_has_loadbank_output)
         if hasattr(self, "_lbl_control_note"):
             if owned:
                 self._set_control_note("Matrix control enabled. Return loadbank to idle before releasing.")
@@ -212,13 +220,14 @@ class LoadBankControlPanel(QWidget):
             self._spin_seek.setRange(0.0, max(1.0, self._cycle_duration_s))
         if self._cycle_chart is None:
             return
-        if self._cycle_schedule and self._cycle_duration_s > 0:
-            self._cycle_chart.set_schedule(
-                self._cycle_schedule,
+        if self._cycle_series and self._cycle_duration_s > 0 and hasattr(self._cycle_chart, "set_schedule_series"):
+            self._cycle_chart.set_schedule_series(
+                self._cycle_series,
                 self._cycle_duration_s,
-                loops=self._cycle_loops_total,
-                dwell_s=self._cycle_dwell_s,
+                self._cycle_loop_boundaries,
             )
+        elif self._cycle_schedule and self._cycle_duration_s > 0:
+            self._cycle_chart.set_schedule(self._cycle_schedule, self._cycle_duration_s, loops=self._cycle_loops_total)
         elif hasattr(self._cycle_chart, "clear_schedule"):
             self._cycle_chart.clear_schedule()
 
@@ -226,7 +235,10 @@ class LoadBankControlPanel(QWidget):
         """Read cycle.yaml to get the schedule CSV for the chart widget."""
         import csv as csv_mod
         self._cycle_schedule = []
+        self._cycle_series = []
+        self._cycle_loop_boundaries = []
         self._cycle_duration_s = 0.0
+        self._cycle_has_loadbank_output = True
         cyc_path = Path(__file__).resolve().parents[3] / "configs" / "cycle.yaml"
         try:
             import yaml  # type: ignore
@@ -242,28 +254,50 @@ class LoadBankControlPanel(QWidget):
             self._cycle_loops_total = max(1, int(exec_cfg.get("loops_total", 1)))
         except Exception:
             self._cycle_loops_total = 1
-        try:
-            self._cycle_dwell_s = max(0.0, float(exec_cfg.get("inter_loop_dwell_s", 0)))
-        except Exception:
-            self._cycle_dwell_s = 0.0
         if not csv_rel:
             return
         source_cfg = (cyc_cfg.get("source") or {}) if isinstance(cyc_cfg.get("source"), dict) else {}
         cols = (source_cfg.get("columns") or {}) if isinstance(source_cfg.get("columns"), dict) else {}
-        col_time = str(cols.get("time", "Time"))
         col_load = str(cols.get("load", "Load"))
+        outputs = cyc_cfg.get("outputs") if isinstance(cyc_cfg.get("outputs"), list) else []
+        if not outputs:
+            outputs = [{"csv_column": col_load, "type": "loadbank"}]
+        norm_outputs: List[Dict[str, str]] = []
+        for item in outputs:
+            if not isinstance(item, dict):
+                continue
+            col = str(item.get("csv_column", "") or "")
+            typ = str(item.get("type", "") or "").lower()
+            alias = str(item.get("alias", "") or "")
+            if not col or typ not in {"loadbank", "nidaq_do", "nidaq_ao"}:
+                continue
+            out = {"csv_column": col, "type": typ}
+            if alias:
+                out["alias"] = alias
+            norm_outputs.append(out)
+        self._cycle_has_loadbank_output = any(o.get("type") == "loadbank" for o in norm_outputs)
         configs_dir = Path(__file__).resolve().parents[3] / "configs"
         candidates = [Path(csv_rel), (configs_dir / csv_rel).resolve(), (configs_dir.parent / csv_rel).resolve()]
         rows: List[Tuple[float, float]] = []
+        times: List[float] = []
+        columns: Dict[str, List[float]] = {o["csv_column"]: [] for o in norm_outputs}
         for cp in candidates:
             if cp.exists():
                 try:
                     text = cp.read_text(encoding="utf-8-sig", errors="replace")
                     reader = csv_mod.DictReader(text.splitlines())
-                    if reader.fieldnames and col_time in reader.fieldnames and col_load in reader.fieldnames:
+                    if reader.fieldnames:
+                        headers = [str(h or "").strip() for h in reader.fieldnames]
+                        reader.fieldnames = headers
+                        col_time = headers[0] if headers else ""
                         for row in reader:
                             try:
-                                rows.append((float(row.get(col_time, "")), float(row.get(col_load, ""))))
+                                t = float(row.get(col_time, ""))
+                                times.append(t)
+                                load_val = float(row.get(col_load, 0.0) or 0.0)
+                                rows.append((t, load_val))
+                                for col in columns:
+                                    columns[col].append(float(row.get(col, 0.0) or 0.0))
                             except (ValueError, TypeError):
                                 continue
                     if not rows:
@@ -276,7 +310,18 @@ class LoadBankControlPanel(QWidget):
                 break
         rows.sort(key=lambda x: x[0])
         self._cycle_schedule = rows
-        self._cycle_duration_s = (rows[-1][0] - rows[0][0]) if len(rows) > 1 else max((t for t, _ in rows), default=0.0)
+        if times and build_expanded_cycle_profiles is not None:
+            series, total_duration, bounds = build_expanded_cycle_profiles(
+                times,
+                columns,
+                norm_outputs,
+                loops=self._cycle_loops_total,
+            )
+            self._cycle_series = series
+            self._cycle_loop_boundaries = bounds
+            self._cycle_duration_s = max(1.0, total_duration)
+        else:
+            self._cycle_duration_s = (rows[-1][0] - rows[0][0]) if len(rows) > 1 else max((t for t, _ in rows), default=0.0)
 
     def reload_config(self) -> None:
         """Re-read loadbank.yaml and refresh model labels and setpoint range."""
@@ -695,10 +740,11 @@ class LoadBankControlPanel(QWidget):
         self._send({"type": "cycle_set_start_with_test", "enabled": checked})
 
     def _on_cycle_play(self) -> None:
-        if not self._matrix_control_enabled():
+        if self._cycle_has_loadbank_output and not self._matrix_control_enabled():
             self._set_control_note("Enable Matrix control before starting the cycle.", warn=True)
             return
-        self._cmd_master_load = True
+        if self._cycle_has_loadbank_output:
+            self._cmd_master_load = True
         self._send({"type": "cycle_play"})
 
     def _on_cycle_pause(self) -> None:

@@ -224,6 +224,28 @@ measurements:
     limits:
     - -100.0
     - 99.9969482421875
+  - name: Vbat
+    unit_override: volts
+    enabled: true
+    priority: low
+    unit: volts
+    address: 16777568
+    data_type: UWORD
+    size: 2
+    limits:
+    - 0.0
+    - 255.99609375
+  - name: Vsw
+    unit_override: volts
+    enabled: true
+    priority: low
+    unit: volts
+    address: 16777576
+    data_type: UWORD
+    size: 2
+    limits:
+    - 0.0
+    - 255.99609375
 writes: []
 devices:
 - name: CCP Primary

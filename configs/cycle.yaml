@@ -1,9 +1,11 @@
 source:
-  csv_path: configs/cycles/demo.csv
-  columns:
-    time: Time
-    load: Load
+  csv_path: C:/Users/tonkst/Desktop/cycletest.csv
 execution:
   loops_total: 1
   start_with_test: false
-  inter_loop_dwell_s: 0
+outputs:
+- csv_column: ignition
+  type: nidaq_do
+  alias: xIgnition
+- csv_column: load
+  type: loadbank

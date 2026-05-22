@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
 
 from .registry import PluginRegistry, PluginSpec
 from ..plugins.base import BasePlugin
@@ -23,6 +23,7 @@ from ..plugins.statistics import StatisticsPlugin
 from .storage.stats_snapshots import StatsSnapshotsSink
 from ..plugins.vaisala import VaisalaPlugin
 from ..plugins.omega import OmegaPlugin
+from ..plugins.cycle_output import CycleOutputDriver, cycle_start_actions
 from .storage.sqlite_writer import SqliteWriter, SqliteWriterSettings
 from ..plugins.channel_manager import ChannelManagerPlugin
 from ..plugins.engine_test import EngineTestPlugin
@@ -100,6 +101,8 @@ class Orchestrator:
         }
         self._publish_perf_diag: Dict[str, Any] = {}
         self._do_condition_states: Dict[str, int] = {}
+        self._cycle_output_driver = CycleOutputDriver()
+        self._prev_iCycle_play: bool = False
 
     def start(self) -> None:
         # Placeholder: load configs, initialize IPC bus, register simulated plugins
@@ -558,7 +561,6 @@ class Orchestrator:
                     return f"{hhmmss}.{frac_ms:03d}"
                 except Exception:
                     return "00:00:00.000"
-            _last_cycle_setpoint: Optional[float] = None
             self._refresh_source_map("startup")
             self._publish_core_ready(force=True)
             if run_mode == "demo":
@@ -582,6 +584,7 @@ class Orchestrator:
                     nidaq = self.plugins.get("NI_DAQ") if self._plugin_enabled.get("NI_DAQ") else None
                     calc = self.plugins.get("Calculated_Channels") if self._plugin_enabled.get("Calculated_Channels") else None
                     engine_test = self.plugins.get("EngineTest") if self._plugin_enabled.get("EngineTest") else None
+                    cycle_was_running = False
                     vals = {}
                     units = {}
                     if modbus is not None:
@@ -609,20 +612,9 @@ class Orchestrator:
                         vals.update(getattr(engine_test, "simulate_step")())
                         units.update(getattr(engine_test, "units")())
                     if cycle:
-                        _cyc_was_running = getattr(cycle, "_state", "idle") == "running"
+                        cycle_was_running = getattr(cycle, "_state", "idle") == "running"
                         vals.update(getattr(cycle, "simulate_step")())
                         units.update(getattr(cycle, "units")())
-                        _cyc_state = getattr(cycle, "_state", "idle")
-                        if lb and self._loadbank_has_matrix_control(lb) and (_cyc_state == "running" or _cyc_was_running):
-                            _sp = cycle.current_setpoint_kw()
-                            if _sp != _last_cycle_setpoint:
-                                lb.command_setpoint_kw(_sp)
-                                print(f"[CYCLE->LB] Setpoint changed: {_last_cycle_setpoint} -> {_sp} kW")
-                                _last_cycle_setpoint = _sp
-                        elif _cyc_state != "running":
-                            if _last_cycle_setpoint is not None:
-                                print(f"[CYCLE->LB] Cycle state={_cyc_state}, holding last setpoint ({_last_cycle_setpoint} kW)")
-                            _last_cycle_setpoint = None
                     # Capture current timestamp for this tick
                     now_ts = time.time()
                     if vaisala:
@@ -744,7 +736,10 @@ class Orchestrator:
                             units.update(getattr(calc, "units")())
                         except Exception:
                             pass
+                    self._handle_iCycle_play(vals)
                     self._evaluate_do_conditions(vals)
+                    if cycle:
+                        self._cycle_output_driver.apply(self, cycle, was_running=cycle_was_running)
                     self._forward_console_msgs(vals)
                     pub_vals = _strip_debug_keys(vals)
                     pub_units = _strip_debug_keys(units)
@@ -822,6 +817,7 @@ class Orchestrator:
                     nidaq = self.plugins.get("NI_DAQ") if self._plugin_enabled.get("NI_DAQ") else None
                     calc = self.plugins.get("Calculated_Channels") if self._plugin_enabled.get("Calculated_Channels") else None
                     engine_test = self.plugins.get("EngineTest") if self._plugin_enabled.get("EngineTest") else None
+                    cycle_was_running = False
                     vals = {}
                     units = {}
                     if modbus is not None:
@@ -866,20 +862,9 @@ class Orchestrator:
                         other_plugins_ms += (time.perf_counter() - _phase_start) * 1000.0
                     if cycle:
                         _phase_start = time.perf_counter()
-                        _cyc_was_running = getattr(cycle, "_state", "idle") == "running"
+                        cycle_was_running = getattr(cycle, "_state", "idle") == "running"
                         vals.update(getattr(cycle, "simulate_step")())
                         units.update(getattr(cycle, "units")())
-                        _cyc_state = getattr(cycle, "_state", "idle")
-                        if lb and self._loadbank_has_matrix_control(lb) and (_cyc_state == "running" or _cyc_was_running):
-                            _sp = cycle.current_setpoint_kw()
-                            if _sp != _last_cycle_setpoint:
-                                lb.command_setpoint_kw(_sp)
-                                print(f"[CYCLE->LB] Setpoint changed: {_last_cycle_setpoint} -> {_sp} kW")
-                                _last_cycle_setpoint = _sp
-                        elif _cyc_state != "running":
-                            if _last_cycle_setpoint is not None:
-                                print(f"[CYCLE->LB] Cycle state={_cyc_state}, holding last setpoint ({_last_cycle_setpoint} kW)")
-                            _last_cycle_setpoint = None
                         other_plugins_ms += (time.perf_counter() - _phase_start) * 1000.0
                     now_ts = time.time()
                     if vaisala:
@@ -1012,13 +997,18 @@ class Orchestrator:
                         except Exception:
                             pass
                         calc_ms += (time.perf_counter() - _phase_start) * 1000.0
+                    self._handle_iCycle_play(vals)
                     _phase_start = time.perf_counter()
                     self._evaluate_do_conditions(vals)
                     do_conditions_ms = (time.perf_counter() - _phase_start) * 1000.0
                     _phase_start = time.perf_counter()
+                    if cycle:
+                        self._cycle_output_driver.apply(self, cycle, was_running=cycle_was_running)
+                    outputs_ms += (time.perf_counter() - _phase_start) * 1000.0
+                    _phase_start = time.perf_counter()
                     self._forward_console_msgs(vals)
                     console_msgs_ms = (time.perf_counter() - _phase_start) * 1000.0
-                    outputs_ms = do_conditions_ms + console_msgs_ms
+                    outputs_ms += do_conditions_ms + console_msgs_ms
                     _phase_start = time.perf_counter()
                     pub_vals = _strip_debug_keys(vals)
                     pub_units = _strip_debug_keys(units)
@@ -1225,6 +1215,9 @@ class Orchestrator:
         try:
             cycle = self.plugins.get("Cycle") if self._plugin_enabled.get("Cycle", True) else None
             if cycle is not None:
+                has_lb = getattr(cycle, "has_loadbank_output", None)
+                if callable(has_lb) and not bool(has_lb()):
+                    return blockers
                 state = str(getattr(cycle, "_state", "idle")).lower()
                 if state == "running":
                     blockers.append("cycle is running")
@@ -1237,24 +1230,38 @@ class Orchestrator:
             pass
         return blockers
 
+    def _handle_iCycle_play(self, vals: Dict[str, Any]) -> None:
+        try:
+            raw = vals.get("iCycle_Play", 0.0)
+            requested = bool(float(raw) > 0.5)
+        except Exception:
+            requested = False
+        try:
+            cycle = self.plugins.get("Cycle") if self._plugin_enabled.get("Cycle", True) else None
+            if cycle is None:
+                self._prev_iCycle_play = requested
+                return
+            state = str(getattr(cycle, "_state", "idle")).lower()
+            if requested and not self._prev_iCycle_play and state in {"idle", "complete"}:
+                cycle_start_actions(self, cycle, source="play_request")
+            self._prev_iCycle_play = requested
+        except Exception as exc:
+            try:
+                print(f"[WARN] iCycle_Play handling failed: {exc}")
+            except Exception:
+                pass
+
     def _handle_cycle_command(self, msg: Dict[str, Any]) -> None:
         cycle = self.plugins.get("Cycle") if self._plugin_enabled.get("Cycle", True) else None
         if cycle is None:
             return
-        lb = self.plugins.get("LoadBank") if self._plugin_enabled.get("LoadBank", True) else None
         cmd = str(msg.get("type", ""))
         try:
             if cmd == "cycle_play":
-                if lb is not None:
-                    if not self._loadbank_has_matrix_control(lb):
-                        print("[WARN] Cycle play ignored: enable Matrix loadbank control first")
-                        return
-                    lb.command_master_load(True)
-                    print("[CYCLE->LB] Master Load enabled for cycle")
-                cycle.play()
-                print("[INFO] Cycle: play")
+                cycle_start_actions(self, cycle, source="manual")
             elif cmd == "cycle_pause":
                 cycle.pause()
+                self._prev_iCycle_play = True
                 print("[INFO] Cycle: pause")
             elif cmd == "cycle_seek":
                 cycle.seek(float(msg.get("time_s", 0.0)))
@@ -1863,17 +1870,9 @@ class Orchestrator:
                 return
         cycle = self.plugins.get("Cycle") if self._plugin_enabled.get("Cycle", True) else None
         if cycle is not None and getattr(cycle, "start_with_test", False):
-            lb = self.plugins.get("LoadBank") if self._plugin_enabled.get("LoadBank", True) else None
-            if lb is not None:
-                if not self._loadbank_has_matrix_control(lb):
-                    print("[ERROR] Cannot start recording: Cycle 'Start with Test' is enabled but "
-                          "Matrix loadbank control is not enabled. Enable it first, then try again.")
-                    return
-            if lb is not None:
-                lb.command_master_load(True)
-                print("[CYCLE->LB] Master Load enabled for cycle (Start with Test)")
-            cycle.play()
-            print("[INFO] Cycle started with test (Start with Test enabled)")
+            if not cycle_start_actions(self, cycle, source="start_with_test"):
+                print("[ERROR] Cannot start recording: Cycle 'Start with Test' could not start.")
+                return
         begin_recording(self)
 
     def _end_recording(self) -> None:

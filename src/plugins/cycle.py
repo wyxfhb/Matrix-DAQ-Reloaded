@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import time
 import csv
+import time
 from typing import Any, Dict, List, Set
 from pathlib import Path
 
@@ -22,7 +22,11 @@ class CyclePlugin(BasePlugin):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._schedule: List[tuple[float, float]] = []
+        self._schedule: List[tuple[float, Dict[str, float]]] = []
+        self._outputs: List[Dict[str, str]] = []
+        self._legacy_load_column: str = "Load"
+        self._csv_headers: List[str] = []
+        self._validation_message: str = ""
         self._t0: float = 0.0
         self._loop_len: float = 0.0
         self._loops_total: int = 1
@@ -30,6 +34,7 @@ class CyclePlugin(BasePlugin):
         self._paused: bool = False
         self._pause_elapsed: float = 0.0
         self._last_setpoint: float = 0.0
+        self._last_values: Dict[str, float] = {}
         self._start_with_test: bool = False
 
     # ------------------------------------------------------------------
@@ -37,17 +42,40 @@ class CyclePlugin(BasePlugin):
     # ------------------------------------------------------------------
 
     def configure(self) -> None:
+        self._schedule = []
+        self._outputs = []
+        self._csv_headers = []
+        self._validation_message = ""
+        self._loop_len = 0.0
         src = self.config.get("source") or {}
+        cols = src.get("columns") or {}
+        if isinstance(cols, dict):
+            self._legacy_load_column = str(cols.get("load", "Load") or "Load")
+        else:
+            self._legacy_load_column = "Load"
+        self._outputs = self._normalize_outputs(self.config.get("outputs"))
         csv_path = src.get("csv_path")
         if csv_path:
             p = Path(csv_path)
             candidates = [p, (self.configs_dir / p).resolve(), (self.configs_dir.parent / p).resolve()]
             for c in candidates:
                 if c.exists():
-                    self._schedule = self._read_csv(c)
+                    self._schedule, self._csv_headers = self._read_csv(c, self._outputs)
                     break
+            data_headers = self._csv_headers[1:] if self._csv_headers else []
+            time_header = self._csv_headers[0] if self._csv_headers else ""
+            missing = [
+                o.get("csv_column", "")
+                for o in self._outputs
+                if o.get("csv_column", "") and o.get("csv_column", "") not in data_headers
+            ]
+            if missing:
+                self._validation_message = "missing cycle CSV column(s): " + ", ".join(sorted(set(missing)))
+            if any(o.get("csv_column", "") == time_header for o in self._outputs):
+                self._validation_message = f"cycle output cannot map first/time column: {time_header}"
         if self._schedule:
             self._loop_len = max(t for t, _ in self._schedule)
+            self._last_values = self._zero_values()
         exec_cfg = self.config.get("execution") or {}
         self._loops_total = max(1, int(exec_cfg.get("loops_total", 1)))
         self._start_with_test = bool(exec_cfg.get("start_with_test", False))
@@ -55,6 +83,12 @@ class CyclePlugin(BasePlugin):
     def validate(self) -> PluginStatus:
         if not isinstance(self.config.get("source", {}), dict):
             return PluginStatus(ok=False, message="cycle source block required")
+        if self._validation_message:
+            return PluginStatus(ok=False, message=self._validation_message)
+        if not self._outputs:
+            return PluginStatus(ok=False, message="cycle outputs block is empty")
+        if not self._schedule:
+            return PluginStatus(ok=False, message="cycle schedule is empty or unreadable")
         return PluginStatus(ok=True)
 
     def start(self) -> None:
@@ -62,6 +96,7 @@ class CyclePlugin(BasePlugin):
         self._paused = False
         self._pause_elapsed = 0.0
         self._last_setpoint = 0.0
+        self._last_values = self._zero_values()
         self._t0 = 0.0
 
     def stop(self) -> None:
@@ -69,14 +104,19 @@ class CyclePlugin(BasePlugin):
         self._paused = False
 
     def aliases(self) -> Set[str]:
-        return {
+        aliases = {
             "Cycle/state", "Cycle/position_s", "Cycle/setpoint_kw",
             "Cycle/loop_current", "Cycle/loop_total", "Cycle/progress_pct",
             "Cycle/schedule_len_s", "Cycle/elapsed_s",
         }
+        for out in self._outputs:
+            label = self._output_label(out)
+            if label:
+                aliases.add(f"Cycle/output/{label}")
+        return aliases
 
     def units(self) -> Dict[str, str]:
-        return {
+        units = {
             "Cycle/state": "",
             "Cycle/position_s": "s",
             "Cycle/setpoint_kw": "kW",
@@ -86,6 +126,12 @@ class CyclePlugin(BasePlugin):
             "Cycle/schedule_len_s": "s",
             "Cycle/elapsed_s": "s",
         }
+        for out in self._outputs:
+            label = self._output_label(out)
+            typ = str(out.get("type", "")).lower()
+            if label:
+                units[f"Cycle/output/{label}"] = "kW" if typ == "loadbank" else ("bool" if typ == "nidaq_do" else "")
+        return units
 
     # ------------------------------------------------------------------
     # Play / Pause / Seek / Loops
@@ -98,6 +144,7 @@ class CyclePlugin(BasePlugin):
             self._paused = False
             self._pause_elapsed = 0.0
             self._last_setpoint = 0.0
+            self._last_values = self._zero_values()
             self._state = _STATE_RUNNING
             return
         if self._state == _STATE_PAUSED:
@@ -109,6 +156,7 @@ class CyclePlugin(BasePlugin):
             self._paused = False
             self._pause_elapsed = 0.0
             self._last_setpoint = 0.0
+            self._last_values = self._zero_values()
             self._state = _STATE_RUNNING
 
     def pause(self) -> None:
@@ -152,21 +200,45 @@ class CyclePlugin(BasePlugin):
 
     @property
     def schedule(self) -> List[tuple[float, float]]:
-        return list(self._schedule)
+        col = self.loadbank_column
+        return [(t, float(values.get(col, 0.0))) for t, values in self._schedule] if col else []
+
+    @property
+    def output_mappings(self) -> List[Dict[str, str]]:
+        return [dict(o) for o in self._outputs]
+
+    @property
+    def loadbank_column(self) -> str:
+        for out in self._outputs:
+            if str(out.get("type", "")).lower() == "loadbank":
+                return str(out.get("csv_column", ""))
+        return ""
+
+    def has_loadbank_output(self) -> bool:
+        return bool(self.loadbank_column)
 
     # ------------------------------------------------------------------
     # Setpoint evaluation
     # ------------------------------------------------------------------
 
     def current_setpoint_kw(self) -> float:
-        if self._state == _STATE_PAUSED:
-            return self._last_setpoint
-        if self._state != _STATE_RUNNING or not self._schedule:
-            return self._last_setpoint
-        pos = self._current_loop_pos()
-        val = self._interp_schedule(pos)
+        vals = self.current_values()
+        col = self.loadbank_column
+        val = float(vals.get(col, 0.0)) if col else 0.0
         self._last_setpoint = val
         return val
+
+    def current_values(self) -> Dict[str, float]:
+        if self._state == _STATE_PAUSED:
+            return dict(self._last_values)
+        if self._state != _STATE_RUNNING or not self._schedule:
+            return dict(self._last_values)
+        pos = self._current_loop_pos()
+        vals = self._interp_schedule(pos)
+        self._last_values = dict(vals)
+        col = self.loadbank_column
+        self._last_setpoint = float(vals.get(col, 0.0)) if col else 0.0
+        return dict(vals)
 
     def _elapsed_s(self) -> float:
         if self._paused:
@@ -195,14 +267,14 @@ class CyclePlugin(BasePlugin):
             return 1
         return min(int(elapsed // self._loop_len) + 1, self._loops_total)
 
-    def _interp_schedule(self, pos: float) -> float:
-        last_val = 0.0
-        for t, v in self._schedule:
+    def _interp_schedule(self, pos: float) -> Dict[str, float]:
+        last_vals = self._zero_values()
+        for t, values in self._schedule:
             if pos >= t:
-                last_val = v
+                last_vals = dict(values)
             else:
                 break
-        return last_val
+        return last_vals
 
     # ------------------------------------------------------------------
     # Telemetry
@@ -210,10 +282,11 @@ class CyclePlugin(BasePlugin):
 
     def simulate_step(self, _vals: Dict[str, Any] | None = None) -> Dict[str, Any]:
         elapsed = self._elapsed_s()
-        # Setpoint must be computed while still running: _current_loop_pos() can set
-        # complete first, which would make current_setpoint_kw() skip _interp_schedule
-        # and leave _last_setpoint stuck on the prior step.
-        sp = self.current_setpoint_kw()
+        # Values must be computed while still running: _current_loop_pos() can set
+        # complete first, which would otherwise leave outputs stuck on the prior step.
+        values = self.current_values()
+        col = self.loadbank_column
+        sp = float(values.get(col, 0.0)) if col else 0.0
         if self._state in (_STATE_RUNNING, _STATE_PAUSED):
             pos = self._current_loop_pos()
         elif self._state == _STATE_COMPLETE:
@@ -223,7 +296,7 @@ class CyclePlugin(BasePlugin):
         loop_cur = self._current_loop_number() if self._state in (_STATE_RUNNING, _STATE_PAUSED, _STATE_COMPLETE) else 0
         total_dur = self._loop_len * max(self._loops_total, 1)
         progress = min(100.0, (elapsed / total_dur * 100.0) if total_dur > 0 else 0.0)
-        return {
+        out = {
             "Cycle/state": float(_STATE_INT.get(self._state, 0)),
             "Cycle/position_s": round(pos, 2),
             "Cycle/setpoint_kw": round(sp, 2),
@@ -233,24 +306,70 @@ class CyclePlugin(BasePlugin):
             "Cycle/schedule_len_s": round(self._loop_len, 2),
             "Cycle/elapsed_s": round(elapsed, 2),
         }
+        for mapping in self._outputs:
+            label = self._output_label(mapping)
+            col_name = str(mapping.get("csv_column", ""))
+            if label and col_name:
+                out[f"Cycle/output/{label}"] = round(float(values.get(col_name, 0.0)), 4)
+        return out
 
     # ------------------------------------------------------------------
     # CSV loader
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _read_csv(path: Path) -> List[tuple[float, float]]:
-        rows: List[tuple[float, float]] = []
-        with path.open("r", encoding="utf-8") as f:
-            reader = csv.reader(f)
+    def _read_csv(
+        path: Path,
+        outputs: List[Dict[str, str]],
+    ) -> tuple[List[tuple[float, Dict[str, float]]], List[str]]:
+        rows: List[tuple[float, Dict[str, float]]] = []
+        with path.open("r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            headers = [str(h or "").strip() for h in (reader.fieldnames or [])]
+            if not headers:
+                return rows, []
+            reader.fieldnames = headers
+            time_column = headers[0]
             for row in reader:
-                if not row or row[0].startswith("#"):
-                    continue
                 try:
-                    t = float(row[0])
-                    v = float(row[1])
-                    rows.append((t, v))
+                    raw_t = row.get(time_column, "")
+                    if raw_t is None or str(raw_t).strip().startswith("#"):
+                        continue
+                    t = float(raw_t)
+                    vals: Dict[str, float] = {}
+                    for out in outputs:
+                        col = str(out.get("csv_column", ""))
+                        vals[col] = float(row.get(col, 0.0) or 0.0)
+                    rows.append((t, vals))
                 except Exception:
                     continue
         rows.sort(key=lambda x: x[0])
-        return rows
+        return rows, headers
+
+    def _normalize_outputs(self, raw: Any) -> List[Dict[str, str]]:
+        outs: List[Dict[str, str]] = []
+        if isinstance(raw, list):
+            for item in raw:
+                if not isinstance(item, dict):
+                    continue
+                csv_col = str(item.get("csv_column", "") or "").strip()
+                typ = str(item.get("type", "") or "").strip().lower()
+                alias = str(item.get("alias", "") or "").strip()
+                if not csv_col or typ not in {"loadbank", "nidaq_do", "nidaq_ao"}:
+                    continue
+                out = {"csv_column": csv_col, "type": typ}
+                if alias:
+                    out["alias"] = alias
+                outs.append(out)
+        if outs:
+            return outs
+        return [{"csv_column": self._legacy_load_column or "Load", "type": "loadbank"}]
+
+    def _zero_values(self) -> Dict[str, float]:
+        return {str(out.get("csv_column", "")): 0.0 for out in self._outputs if out.get("csv_column")}
+
+    def _output_label(self, mapping: Dict[str, str]) -> str:
+        typ = str(mapping.get("type", "")).lower()
+        if typ in {"nidaq_do", "nidaq_ao"} and mapping.get("alias"):
+            return str(mapping.get("alias"))
+        return str(mapping.get("csv_column", ""))

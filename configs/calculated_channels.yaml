@@ -118,3 +118,12 @@ channels:
   - var: bmep
     alias: xPO_BMEPRAW
     unit: Bar
+- name: CyclePlayLogic
+  enabled: true
+  symbols:
+    ign: emasterVsw
+  body: cycle_play = 1 if ign < 6 else 0
+  outputs:
+  - var: cycle_play
+    alias: iCycle_Play
+    unit: bool
