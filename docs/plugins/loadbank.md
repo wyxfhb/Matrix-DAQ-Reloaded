@@ -104,8 +104,8 @@ Initial state: `_control_values_a = [False, False, False]` (Take Control or hear
 The configuration schema can store a primary and secondary loadbank, but current runtime control targets the configured primary loadbank. Matrix-managed load distribution, such as filling a 1.5MW primary before applying the remainder to a 750kW secondary, is intentionally deferred until the operating requirements are better defined. The Simplex 700kW remains a single Matrix-controlled target because any daisy-chained downstream loadbanks are managed internally by the Simplex controller.
 
 ### Integration with Cycle Plugin
-- When the Cycle plugin plays, the orchestrator enables Master Load automatically and begins piping setpoints
-- Setpoint commands are sent only when the value changes (change-detection, not every tick)
+- When the Cycle plugin plays with a `loadbank` output mapping, the orchestrator enables Master Load automatically and begins piping mapped setpoints
+- Setpoint commands are sent only when the mapped load value changes (change-detection, not every tick)
 - On cycle pause: last setpoint held, Master Load stays on
 - On cycle complete: last setpoint held (cycles typically end at 0kW); operator uses Emergency Stop to drop load
 - On cycle restart (Play from complete): resets to beginning and runs again

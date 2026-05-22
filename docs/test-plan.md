@@ -36,7 +36,7 @@
    - CAN UI: database import, tree selection, alias assignment, bus bitrate configuration
    - Modbus UI: servers, reads (FC/type/endianness/scaling/poll_hz), writes (limits/readback)
    - LoadBank UI: model dropdown from maps, IP config, Test Connection, auto-connect/keep-alive
-   - Cycle UI: CSV selection, loop/dwell/restart/skip options, Accept gating controls/status
+   - Cycle UI: CSV selection, output mapping for columns 2+, loop/restart/skip options, controls/status
    - Displays: All‑Channels Table (alarm colors, performance), Plots (time window, decimation), Dials/Gauges (threshold ticks)
    - Alarm drawer and global banner behavior; AlarmEvents table matches export
    - CCP UI: A2L import, seed/key DLL config + dry-run, variable selection with aliases, optional write dialog
@@ -56,6 +56,6 @@
 13. LoadBank
    - Model loading, connection test, auto-connect, setpoint/accept behavior, status polling, error UI
 14. Cycle
-   - CSV parse/validate (Time s, Load kW), step behavior (no interpolation), loops/pause/stop/restart/skip, preview plot
+   - CSV parse/validate with column 1 as time and columns 2+ as mapped outputs, step behavior (no interpolation), loops/pause/stop/restart/skip, multi-series preview plot
 
 

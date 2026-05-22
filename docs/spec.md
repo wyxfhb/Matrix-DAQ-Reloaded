@@ -30,7 +30,7 @@ This document summarizes functional and non-functional requirements for the Engi
 - CCP: A2L import, seed/key DLL unlock, checkbox measurement selection using A2L names and optional global naming prefix; optional bounded writes; R-grid alignment
 - Modbus: per-server register/channel definitions, polling at ≤ R, scaling, aliases, safeguarded writes, R-grid alignment
 - LoadBank: specialized Modbus with model dropdown, IP config, connection test, auto-connect/keep-alive, setpoint/accept and status
-- Cycle: CSV (Time s, Load kW) step runner (no interpolation), loops, pause/stop/restart/skip; no Accept required; preview plot; future safety backoff
+- Cycle: CSV step runner with column 1 as time and columns 2+ mapped to LoadBank, NI DO, or NI AO outputs; no interpolation; loops, pause/stop/restart/skip; no Accept required; multi-series preview plot
 - Statistics: rolling/fixed windows at rate R, selectable metrics, optional trigger gating; `_Statistics` files mirror primary segmentation/export rules
 - Calculated Channels: restricted Python expressions at R, rolling helpers, boolean latching, dependency ordering, NaN guards
 - Channel Manager: select recording rate R and configure per-channel alarms (warning/shutdown) with latching and bulk edits; optional summary outputs

@@ -1,11 +1,12 @@
 source:
-  csv_path: C:/Users/tonkst/Desktop/cycletest.csv
+  csv_path: C:/Users/tonkst/Desktop/cycletest - Copy.csv
 execution:
   loops_total: 1
   start_with_test: false
 outputs:
 - csv_column: ignition
-  type: nidaq_do
+  type: nidaq_ao
   alias: xIgnition
-- csv_column: load
-  type: loadbank
+- csv_column: louverposition
+  type: nidaq_ao
+  alias: eLOUVERPosition

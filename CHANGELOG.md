@@ -1,10 +1,14 @@
-<!-- Author: T. Onkst | Date: 05142026 -->
+<!-- Author: T. Onkst | Date: 05222026 -->
 
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 03/09/2026
+
+### Cycle plugin documentation refresh — 05/22/2026
+#### Changed
+- **Cycle plugin docs**: updated documentation to describe first-column time parsing, multi-output mappings for LoadBank/NI DO/NI AO, `iCycle_Play` safety behavior, multi-series previews, and removal of saved `source.columns.time` from current config.
 
 ### CCP config A2L reload metadata refresh — 05/14/2026
 #### Fixed

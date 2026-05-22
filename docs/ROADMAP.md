@@ -82,9 +82,9 @@ Deliver a Windows desktop app that streams, visualizes, and records engine test 
 - Configuration UI: right-click configure dialog (window settings, metrics, trigger)
 
 #### Cycle Plugin
-- CSV schedule (Time, kW) -> drives LoadBank setpoint; end-of-cycle stops issuing commands; edge-aware final step
-- Configuration UI with QtCharts staircase plot preview (step/hold visualization matching load bank behavior)
-- Handles BOM-encoded CSV files; status bar shows point count, loops, cycle duration
+- CSV schedule uses column 1 as time and maps columns 2+ to LoadBank, NI DO, or NI AO outputs
+- Configuration UI with QtCharts multi-series staircase plot preview and output mapping
+- Handles BOM-encoded CSV files; status bar shows point count, outputs, loops, cycle duration
 
 #### Vaisala Plugin
 - Simulation mode: Ambient Temp/RH/Pressure channels with configurable IP/model and calibration offsets

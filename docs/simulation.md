@@ -35,7 +35,7 @@ Provide deterministic, hardware-free data sources for early development and CI. 
 - Always compute from whatever sources are active (real or sim).
 
 ### Cycle
-- Drives LoadBank (real or sim) using the CSV schedule.
+- Drives mapped outputs using the CSV schedule. CSV column 1 is time; columns 2+ can map to LoadBank setpoints, NI digital outputs, or NI analog outputs.
 
 ### Configuration Example (excerpt)
 ```yaml
