@@ -1,4 +1,4 @@
-# Author: T. Onkst | Date: 03092026
+# Author: T. Onkst | Date: 05222026
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ try:
 		QHeaderView,
 		QAbstractItemView,
 		QDialogButtonBox,
+		QFormLayout,
 	)
 except Exception:
 	raise
@@ -33,6 +34,7 @@ class AliasPickerDialog(QDialog):
 		self,
 		parent=None,
 		current_alias: str = "",
+		current_unit: str = "",
 		**_kwargs,
 	) -> None:
 		super().__init__(parent)
@@ -40,7 +42,9 @@ class AliasPickerDialog(QDialog):
 		self.resize(500, 500)
 
 		self.selected_alias: str = ""
+		self.selected_unit: str = ""
 		self._current_alias = current_alias
+		self._current_unit = current_unit
 		self._channels: List[Dict[str, str]] = []
 		self._perf_diag_enabled = str(os.environ.get("MATRIX_UI_PERF_DIAG", "")).strip().lower() in {
 			"1",
@@ -155,12 +159,21 @@ class AliasPickerDialog(QDialog):
 		tab = QWidget()
 		vbox = QVBoxLayout(tab)
 
+		form = QFormLayout()
 		self._custom_edit = QLineEdit()
 		self._custom_edit.setPlaceholderText("Enter custom alias...")
 		if self._current_alias:
 			self._custom_edit.setText(self._current_alias)
 		self._custom_edit.textChanged.connect(self._on_custom_text_changed)  # type: ignore
-		vbox.addWidget(self._custom_edit)
+
+		self._custom_unit_edit = QLineEdit()
+		self._custom_unit_edit.setPlaceholderText("Enter unit (optional)...")
+		if self._current_unit:
+			self._custom_unit_edit.setText(self._current_unit)
+
+		form.addRow("Alias:", self._custom_edit)
+		form.addRow("Unit:", self._custom_unit_edit)
+		vbox.addLayout(form)
 
 		self._valid_label = QLabel("")
 		vbox.addWidget(self._valid_label)
@@ -214,9 +227,12 @@ class AliasPickerDialog(QDialog):
 	def _on_library_double_click(self) -> None:
 		rows = self._lib_table.selectionModel().selectedRows()
 		if rows:
-			item = self._lib_table.item(rows[0].row(), 0)
-			if item:
-				self.selected_alias = item.text()
+			row = rows[0].row()
+			alias_item = self._lib_table.item(row, 0)
+			unit_item = self._lib_table.item(row, 1)
+			if alias_item:
+				self.selected_alias = alias_item.text()
+				self.selected_unit = unit_item.text() if unit_item else ""
 				self.accept()
 
 	def _on_custom_text_changed(self, text: str) -> None:
@@ -247,9 +263,13 @@ class AliasPickerDialog(QDialog):
 		if self._tabs.currentIndex() == 0:
 			rows = self._lib_table.selectionModel().selectedRows()
 			if rows:
-				item = self._lib_table.item(rows[0].row(), 0)
-				if item:
-					self.selected_alias = item.text()
+				row = rows[0].row()
+				alias_item = self._lib_table.item(row, 0)
+				unit_item = self._lib_table.item(row, 1)
+				if alias_item:
+					self.selected_alias = alias_item.text()
+					self.selected_unit = unit_item.text() if unit_item else ""
 		else:
 			self.selected_alias = self._custom_edit.text().strip()
+			self.selected_unit = self._custom_unit_edit.text().strip()
 		self.accept()

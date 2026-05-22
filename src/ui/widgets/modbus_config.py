@@ -1,3 +1,5 @@
+# Author: T. Onkst | Date: 05222026
+
 from __future__ import annotations
 
 import json
@@ -351,13 +353,23 @@ class ModbusConfigDialog(QDialog):
         item = self.table.item(row, 0)
         if item is not None:
             current = item.text().strip()
+        current_unit = ""
+        unit_item = self.table.item(row, 1)
+        if unit_item is not None:
+            current_unit = unit_item.text().strip()
         try:
-            dlg = AliasPickerDialog(parent=self, current_alias=current)
+            dlg = AliasPickerDialog(parent=self, current_alias=current, current_unit=current_unit)
             if dlg.exec() == QDialog.Accepted and dlg.selected_alias:
                 if item is None:
                     item = QTableWidgetItem("")
                     self.table.setItem(row, 0, item)
                 item.setText(dlg.selected_alias)
+                unit = str(getattr(dlg, "selected_unit", "") or "").strip()
+                if unit:
+                    if unit_item is None:
+                        unit_item = QTableWidgetItem("")
+                        self.table.setItem(row, 1, unit_item)
+                    unit_item.setText(unit)
         except Exception as exc:
             QMessageBox.warning(self, "Alias Picker", f"Could not open alias picker: {exc}")
 

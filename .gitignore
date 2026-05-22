@@ -47,4 +47,6 @@ logs/**
 # Local env files
 .env
 
+# Zip Files
+*.zip
 

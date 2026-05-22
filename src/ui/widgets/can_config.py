@@ -1,4 +1,4 @@
-# Author: T. Onkst | Date: 04202026
+# Author: T. Onkst | Date: 05222026
 
 from __future__ import annotations
 
@@ -107,12 +107,15 @@ class _BusTab(QWidget):
         self.cmb_baudrate.setCurrentIndex(idx if idx >= 0 else 2)
         self.txt_dbc_path.setText(str(bus_cfg.get("dbc_path", "")))
 
-        saved_map: Dict[tuple, str] = {}
+        saved_map: Dict[tuple, Dict[str, str]] = {}
         for sig in bus_cfg.get("signals", []) or []:
             if not isinstance(sig, dict):
                 continue
             key = (str(sig.get("message", "")), str(sig.get("signal", "")))
-            saved_map[key] = str(sig.get("alias", ""))
+            saved_map[key] = {
+                "alias": str(sig.get("alias", "")),
+                "unit": str(sig.get("unit", "")),
+            }
         self._reload_signals_from_dbc(saved_map=saved_map)
 
     def to_bus_dict(self) -> Dict[str, Any]:
@@ -146,7 +149,7 @@ class _BusTab(QWidget):
             self.txt_dbc_path.setText(path)
             self._reload_signals_from_dbc()
 
-    def _reload_signals_from_dbc(self, saved_map: Optional[Dict[tuple, str]] = None) -> None:
+    def _reload_signals_from_dbc(self, saved_map: Optional[Dict[tuple, Any]] = None) -> None:
         if saved_map is None:
             saved_map = self._current_signal_map()
         self.tbl_signals.setRowCount(0)
@@ -178,10 +181,16 @@ class _BusTab(QWidget):
         for row, item_data in enumerate(self._dbc_signals):
             msg = item_data["message"]
             sig = item_data["signal"]
-            unit = item_data["unit"] or ""
             key = (msg, sig)
             is_selected = key in saved_map
-            saved_alias = saved_map.get(key, "")
+            saved = saved_map.get(key, {})
+            if isinstance(saved, dict):
+                saved_alias = str(saved.get("alias", ""))
+                saved_unit = str(saved.get("unit", ""))
+            else:
+                saved_alias = str(saved)
+                saved_unit = ""
+            unit = item_data["unit"] or saved_unit
 
             chk_item = QTableWidgetItem()
             chk_item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
@@ -210,8 +219,8 @@ class _BusTab(QWidget):
     # Signal helpers
     # ------------------------------------------------------------------
 
-    def _current_signal_map(self) -> Dict[tuple, str]:
-        out: Dict[tuple, str] = {}
+    def _current_signal_map(self) -> Dict[tuple, Dict[str, str]]:
+        out: Dict[tuple, Dict[str, str]] = {}
         for r in range(self.tbl_signals.rowCount()):
             chk = self.tbl_signals.item(r, 0)
             if chk is None or chk.checkState() != Qt.Checked:
@@ -222,8 +231,10 @@ class _BusTab(QWidget):
                    if self.tbl_signals.item(r, 2) else "")
             alias = (self.tbl_signals.item(r, 4).text().strip()
                      if self.tbl_signals.item(r, 4) else "")
+            unit = (self.tbl_signals.item(r, 3).text().strip()
+                    if self.tbl_signals.item(r, 3) else "")
             if sig:
-                out[(msg, sig)] = alias
+                out[(msg, sig)] = {"alias": alias, "unit": unit}
         return out
 
     def _checked_signals(self) -> List[Dict[str, Any]]:
@@ -272,10 +283,18 @@ class _BusTab(QWidget):
             return
         current = (self.tbl_signals.item(row, 4).text().strip()
                    if self.tbl_signals.item(row, 4) else "")
+        unit_item = self.tbl_signals.item(row, 3)
+        current_unit = unit_item.text().strip() if unit_item is not None else ""
         try:
-            dlg = AliasPickerDialog(parent=self, current_alias=current)
+            dlg = AliasPickerDialog(parent=self, current_alias=current, current_unit=current_unit)
             if dlg.exec() == QDialog.Accepted and dlg.selected_alias:
                 self.tbl_signals.setItem(row, 4, QTableWidgetItem(dlg.selected_alias))
+                unit = str(getattr(dlg, "selected_unit", "") or "").strip()
+                if unit and not current_unit:
+                    if unit_item is None:
+                        unit_item = QTableWidgetItem("")
+                        self.tbl_signals.setItem(row, 3, unit_item)
+                    unit_item.setText(unit)
         except Exception as exc:
             QMessageBox.warning(self, "Alias Picker", f"Could not open alias picker: {exc}")
 

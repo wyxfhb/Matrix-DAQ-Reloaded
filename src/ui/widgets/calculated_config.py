@@ -1,4 +1,4 @@
-# Author: T. Onkst | Date: 04292026
+# Author: T. Onkst | Date: 05222026
 from __future__ import annotations
 
 import ast
@@ -413,13 +413,21 @@ class CalculatedConfigDialog(QDialog):
             return
         item = self.tbl_outputs.item(row, 1)
         current = item.text().strip() if item is not None else ""
+        unit_item = self.tbl_outputs.item(row, 2)
+        current_unit = unit_item.text().strip() if unit_item is not None else ""
         try:
-            dlg = AliasPickerDialog(parent=self, current_alias=current)
+            dlg = AliasPickerDialog(parent=self, current_alias=current, current_unit=current_unit)
             if dlg.exec() == QDialog.Accepted and dlg.selected_alias:
                 if item is None:
                     item = QTableWidgetItem("")
                     self.tbl_outputs.setItem(row, 1, item)
                 item.setText(dlg.selected_alias)
+                unit = str(getattr(dlg, "selected_unit", "") or "").strip()
+                if unit:
+                    if unit_item is None:
+                        unit_item = QTableWidgetItem("")
+                        self.tbl_outputs.setItem(row, 2, unit_item)
+                    unit_item.setText(unit)
         except Exception as exc:
             QMessageBox.warning(self, "Alias Picker", f"Could not open alias picker: {exc}")
 

@@ -1,4 +1,4 @@
-# Author: T. Onkst | Date: 03092026
+# Author: T. Onkst | Date: 05222026
 
 from __future__ import annotations
 
@@ -379,9 +379,45 @@ class NiDaqConfigDialog(QDialog):
 
 	def _open_alias_picker(self, table: QTableWidget, row: int, col: int) -> None:
 		current = table.item(row, col).text().strip() if table.item(row, col) else ""
-		dlg = AliasPickerDialog(parent=self, current_alias=current)
+		current_unit = ""
+		if table in (self.tbl_ai, self.tbl_ao) and table.item(row, 3):
+			current_unit = table.item(row, 3).text().strip()
+		dlg = AliasPickerDialog(parent=self, current_alias=current, current_unit=current_unit)
 		if dlg.exec() == QDialog.Accepted and dlg.selected_alias:
 			table.setItem(row, col, QTableWidgetItem(dlg.selected_alias))
+			unit = str(getattr(dlg, "selected_unit", "") or "").strip()
+			if unit and table is self.tbl_ai:
+				self._apply_ai_alias_unit(row, unit)
+			elif unit and table is self.tbl_ao:
+				self._apply_ao_alias_unit(row, unit)
+
+	def _apply_ai_alias_unit(self, row: int, unit: str) -> None:
+		meas_cb = self.tbl_ai.cellWidget(row, 4)
+		meas = meas_cb.currentText() if isinstance(meas_cb, QComboBox) else "Voltage"
+		if meas in ("TC", "RTD"):
+			unit = unit.upper()
+			if unit not in {"C", "F", "K"}:
+				return
+		self.tbl_ai.setItem(row, 3, QTableWidgetItem(unit))
+		sc = dict(self._ai_scaling.get(row) or {})
+		if not sc.get("type"):
+			sc["type"] = "none"
+		sc["unit"] = unit
+		self._ai_scaling[row] = sc
+		scale_item = QTableWidgetItem(scaling_summary(sc))
+		scale_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+		self.tbl_ai.setItem(row, 5, scale_item)
+
+	def _apply_ao_alias_unit(self, row: int, unit: str) -> None:
+		self.tbl_ao.setItem(row, 3, QTableWidgetItem(unit))
+		sc = dict(self._ao_scaling.get(row) or {})
+		if not sc.get("type"):
+			sc["type"] = "none"
+		sc["unit"] = unit
+		self._ao_scaling[row] = sc
+		scale_item = QTableWidgetItem(scaling_summary(sc))
+		scale_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEnabled)
+		self.tbl_ao.setItem(row, 4, scale_item)
 
 	def _open_scaling_editor(self, row: int) -> None:
 		meas_cb = self.tbl_ai.cellWidget(row, 4)

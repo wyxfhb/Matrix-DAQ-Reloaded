@@ -114,10 +114,10 @@ channels:
         - 344.738
       extrapolate: true
   - phys: AGENTMod4/ai2
-    alias: AGENTMod4_ai2
-    enabled: false
+    alias: xTestChannel
+    enabled: true
     scaling:
-      unit: V
+      unit: kPa
       type: none
   - phys: AGENTMod4/ai3
     alias: qPR_SlvCacPre
