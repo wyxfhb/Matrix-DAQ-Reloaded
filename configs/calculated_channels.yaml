@@ -121,8 +121,8 @@ channels:
 - name: CyclePlayLogic
   enabled: true
   symbols:
-    ign: emasterVsw
-  body: cycle_play = 1 if ign < 6 else 0
+    time: iTM_Tst
+  body: cycle_play = 1 if time > 250 else 0
   outputs:
   - var: cycle_play
     alias: iCycle_Play

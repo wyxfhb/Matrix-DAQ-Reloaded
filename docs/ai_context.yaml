@@ -171,7 +171,7 @@ inputs:
 outputs:
   - id: "OUT-DATA"
     type: "SQLite time-series segment database(s) + YAML metadata"
-    schema: "Recording grid at R; plugin values sampled from each plugin's latest snapshot at tick time (sample-and-hold); includes Time_Relative_s (s) and internal boolean channels (iOT_Warning, iOT_Alarm, iOT_AlmSftSdn, iOT_AlmEmgSdn, iDG_EngRunStp); statistics outputs separate. Debug channels (CAN/, CCP/, Core/, EngineTest/, NI_DAQ/ prefixes) are stripped at publish boundary via _strip_debug_keys() but */health_ok and */conn_ok are preserved for console health display."
+    schema: "Recording grid at R; plugin values sampled from each plugin's latest snapshot at tick time (sample-and-hold); includes iTM_Tst (s), iTM_Dat, and internal boolean channels (iOT_Warning, iOT_Alarm, iOT_AlmSftSdn, iOT_AlmEmgSdn, iDG_EngRunStp); statistics outputs separate. Debug channels (CAN/, CCP/, Core/, EngineTest/, NI_DAQ/ prefixes) are stripped at publish boundary via _strip_debug_keys() but */health_ok and */conn_ok are preserved for console health display."
   - id: "OUT-EXCEL"
     type: "Excel export"
     schema: "Per-data-segment workbook(s) with sheets: Metadata (includes units matrix), Data (autosize, 2-decimal display), AlarmEvents, StatsSnapshots; split a single file into .1, .2 if exceeding Excel row limit"
@@ -338,7 +338,7 @@ storage:
   excel_export:
     enabled: true
     sheets: ["Metadata", "Data", "AlarmEvents", "StatsSnapshots"]
-    time_columns: ["Time_Relative_s", "Time_Absolute_iso8601"]
+    time_columns: ["iTM_Tst", "iTM_Dat"]
     row_limit_behavior: "One workbook per SQLite segment database; split a single file into .1, .2, … when exceeding Excel row limit (~1,048,576)"
     naming_examples:
       no_seg: "MMDDYY_HHMMSS_EngineType_TestType.xlsx"

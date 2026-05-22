@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ..time_aliases import ABS_TIME_ALIAS, REL_TIME_ALIAS, TIME_ALIASES
+
 
 @dataclass
 class SqliteWriterSettings:
@@ -35,8 +37,8 @@ class SqliteWriter:
         config_snapshot/
 
     Each row contains:
-      - Time_Relative_s  (REAL)
-      - Time_Absolute_iso8601  (TEXT)
+      - iTM_Tst  (REAL)
+      - iTM_Dat  (TEXT)
       - One column per channel alias (REAL)
     """
 
@@ -121,7 +123,7 @@ class SqliteWriter:
 
         if not self._table_created:
             self._columns = list(row_keys)
-            col_defs = ", ".join(f'"{c}" REAL' if c != "Time_Absolute_iso8601" else f'"{c}" TEXT'
+            col_defs = ", ".join(f'"{c}" REAL' if c != ABS_TIME_ALIAS else f'"{c}" TEXT'
                                  for c in self._columns)
             self._conn.execute(f"CREATE TABLE IF NOT EXISTS data ({col_defs})")
             self._conn.commit()
@@ -131,7 +133,7 @@ class SqliteWriter:
         new_cols = [k for k in row_keys if k not in self._columns]
         if new_cols:
             for c in new_cols:
-                col_type = "TEXT" if c == "Time_Absolute_iso8601" else "REAL"
+                col_type = "TEXT" if c == ABS_TIME_ALIAS else "REAL"
                 try:
                     self._conn.execute(f'ALTER TABLE data ADD COLUMN "{c}" {col_type}')
                 except Exception:
@@ -184,11 +186,11 @@ class SqliteWriter:
                     self._observed_units[k] = ""
 
         row_dict: Dict[str, Any] = {
-            "Time_Relative_s": float(values.get("Time_Relative_s", 0.0)),
-            "Time_Absolute_iso8601": self._iso8601(now_ts),
+            REL_TIME_ALIAS: float(values.get(REL_TIME_ALIAS, 0.0)),
+            ABS_TIME_ALIAS: self._iso8601(now_ts),
         }
         for alias, raw in values.items():
-            if alias in ("Time_Relative_s",):
+            if alias in TIME_ALIASES:
                 continue
             try:
                 if isinstance(raw, bool):

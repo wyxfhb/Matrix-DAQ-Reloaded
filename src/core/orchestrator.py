@@ -25,6 +25,7 @@ from ..plugins.vaisala import VaisalaPlugin
 from ..plugins.omega import OmegaPlugin
 from ..plugins.cycle_output import CycleOutputDriver, cycle_start_actions
 from .storage.sqlite_writer import SqliteWriter, SqliteWriterSettings
+from .time_aliases import ABS_TIME_ALIAS, REL_TIME_ALIAS
 from ..plugins.channel_manager import ChannelManagerPlugin
 from ..plugins.engine_test import EngineTestPlugin
 from .recording import begin_recording, end_recording, kickoff_export, build_storage_settings
@@ -245,11 +246,11 @@ class Orchestrator:
         _tag("CAN", "CAN")
         _tag("Modbus", "Modbus")
         _tag("Calculated_Channels", "Calculated")
-        _tag("LoadBank", "System")
+        _tag("LoadBank", "LoadBank")
         _tag("Cycle", "System")
         _tag("EngineTest", "System")
 
-        for key in ("Time_Relative_s", "iOT_Warning", "iOT_Alarm",
+        for key in (REL_TIME_ALIAS, ABS_TIME_ALIAS, "iOT_Warning", "iOT_Alarm",
                      "iOT_AlmSftSdn", "iOT_AlmEmgSdn", "iDG_EngRunStp"):
             smap[key] = "System"
 
@@ -585,6 +586,7 @@ class Orchestrator:
                     calc = self.plugins.get("Calculated_Channels") if self._plugin_enabled.get("Calculated_Channels") else None
                     engine_test = self.plugins.get("EngineTest") if self._plugin_enabled.get("EngineTest") else None
                     cycle_was_running = False
+                    cycle_status = {}
                     vals = {}
                     units = {}
                     if modbus is not None:
@@ -615,6 +617,9 @@ class Orchestrator:
                         cycle_was_running = getattr(cycle, "_state", "idle") == "running"
                         vals.update(getattr(cycle, "simulate_step")())
                         units.update(getattr(cycle, "units")())
+                        status_fn = getattr(cycle, "status_snapshot", None)
+                        if callable(status_fn):
+                            cycle_status = status_fn()
                     # Capture current timestamp for this tick
                     now_ts = time.time()
                     if vaisala:
@@ -647,8 +652,8 @@ class Orchestrator:
                                 pass
                     # Add relative time channel from core
                     elapsed = time.time() - t0
-                    vals["Time_Relative_s"] = elapsed
-                    units["Time_Relative_s"] = "s"
+                    vals[REL_TIME_ALIAS] = elapsed
+                    units[REL_TIME_ALIAS] = "s"
                     # Evaluate alarms
                     states, summary, events = ({}, {"any_warning": False, "any_shutdown": False}, [])
                     # Handle control messages (e.g., manual stats, recording control, export)
@@ -753,6 +758,7 @@ class Orchestrator:
                         "recording": bool(self._recording),
                         "source_map": self._source_map,
                         "display_aliases": self._display_aliases,
+                        "cycle_status": cycle_status,
                     }).encode("utf-8")
                     # One-time NI_DAQ value count diagnostic
                     try:
@@ -818,6 +824,7 @@ class Orchestrator:
                     calc = self.plugins.get("Calculated_Channels") if self._plugin_enabled.get("Calculated_Channels") else None
                     engine_test = self.plugins.get("EngineTest") if self._plugin_enabled.get("EngineTest") else None
                     cycle_was_running = False
+                    cycle_status = {}
                     vals = {}
                     units = {}
                     if modbus is not None:
@@ -865,6 +872,9 @@ class Orchestrator:
                         cycle_was_running = getattr(cycle, "_state", "idle") == "running"
                         vals.update(getattr(cycle, "simulate_step")())
                         units.update(getattr(cycle, "units")())
+                        status_fn = getattr(cycle, "status_snapshot", None)
+                        if callable(status_fn):
+                            cycle_status = status_fn()
                         other_plugins_ms += (time.perf_counter() - _phase_start) * 1000.0
                     now_ts = time.time()
                     if vaisala:
@@ -901,8 +911,8 @@ class Orchestrator:
                         stats_ms += (time.perf_counter() - _phase_start) * 1000.0
                     # Add relative time channel from core
                     elapsed = time.time() - t0
-                    vals["Time_Relative_s"] = elapsed
-                    units["Time_Relative_s"] = "s"
+                    vals[REL_TIME_ALIAS] = elapsed
+                    units[REL_TIME_ALIAS] = "s"
                     # Evaluate alarms
                     states, summary, events = ({}, {"any_warning": False, "any_shutdown": False}, [])
                     # Handle control messages
@@ -1024,6 +1034,7 @@ class Orchestrator:
                         "recording": bool(self._recording),
                         "source_map": self._source_map,
                         "display_aliases": self._display_aliases,
+                        "cycle_status": cycle_status,
                     }).encode("utf-8")
                     json_ms = (time.perf_counter() - _phase_start) * 1000.0
                     _phase_start = time.perf_counter()

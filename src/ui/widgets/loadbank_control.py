@@ -524,10 +524,11 @@ class LoadBankControlPanel(QWidget):
             self._lbl_conn.setText("Disconnected")
             self._lbl_conn.setStyleSheet("color: #e74c3c;")
 
-    def update_values(self, vals: Dict[str, Any]) -> None:
-        """Refresh metering labels from telemetry ``values`` (same dict as console)."""
+    def update_values(self, vals: Dict[str, Any], cycle_status: Dict[str, Any] | None = None) -> None:
+        """Refresh metering labels from telemetry values and optional UI-only cycle status."""
         if not isinstance(vals, dict):
             return
+        cycle_status = cycle_status if isinstance(cycle_status, dict) else {}
         exposes = self._cfg.get("expose_channels") or {}
 
         vab_alias = str(exposes.get("voltage_ab_alias", "lVO_Ldb1"))
@@ -626,8 +627,8 @@ class LoadBankControlPanel(QWidget):
                     self._lbl_heartbeat.setText("—")
                     self._lbl_heartbeat.setStyleSheet("")
 
-        # Cycle telemetry
-        cyc_state_val = vals.get("Cycle/state")
+        # Cycle status prefers UI-only payload, then public aliases, then legacy debug keys.
+        cyc_state_val = cycle_status.get("state", vals.get("iDG_Cyc", vals.get("Cycle/state")))
         if cyc_state_val is not None:
             state_int = int(float(cyc_state_val))
             self._cycle_state_int = state_int
@@ -636,16 +637,16 @@ class LoadBankControlPanel(QWidget):
             colors = {0: "#888", 1: "#2ecc71", 2: "#f39c12", 3: "#3498db"}
             self._lbl_cyc_state.setStyleSheet(f"font-weight: 600; color: {colors.get(state_int, '#888')};")
 
-        cyc_pos = vals.get("Cycle/position_s")
+        cyc_pos = cycle_status.get("position_s", vals.get("iTM_Cyc", vals.get("Cycle/position_s")))
         if cyc_pos is not None:
             self._lbl_cyc_pos.setText(f"Position: {float(cyc_pos):.1f}s")
         if self._cycle_chart is not None:
-            cyc_elapsed = vals.get("Cycle/elapsed_s")
+            cyc_elapsed = cycle_status.get("elapsed_s", vals.get("Cycle/elapsed_s"))
             if cyc_elapsed is not None:
                 self._cycle_chart.set_position(float(cyc_elapsed))
             elif cyc_pos is not None:
-                cyc_loop_for_chart = vals.get("Cycle/loop_current")
-                cyc_len_for_chart = vals.get("Cycle/schedule_len_s")
+                cyc_loop_for_chart = cycle_status.get("loop_current", vals.get("Cycle/loop_current"))
+                cyc_len_for_chart = cycle_status.get("schedule_len_s", vals.get("Cycle/schedule_len_s"))
                 try:
                     loop_idx = max(0, int(float(cyc_loop_for_chart or 1)) - 1)
                     elapsed_est = loop_idx * float(cyc_len_for_chart or self._cycle_duration_s) + float(cyc_pos)
@@ -653,17 +654,17 @@ class LoadBankControlPanel(QWidget):
                     elapsed_est = float(cyc_pos)
                 self._cycle_chart.set_position(elapsed_est)
 
-        cyc_sp = vals.get("Cycle/setpoint_kw")
+        cyc_sp = cycle_status.get("setpoint_kw", vals.get("iPO_Cyc", vals.get("Cycle/setpoint_kw")))
         if cyc_sp is not None:
             self._cycle_setpoint_kw = float(cyc_sp)
             self._lbl_cyc_sp.setText(f"Setpoint: {float(cyc_sp):.0f} kW")
 
-        cyc_loop = vals.get("Cycle/loop_current")
-        cyc_total = vals.get("Cycle/loop_total")
+        cyc_loop = cycle_status.get("loop_current", vals.get("Cycle/loop_current"))
+        cyc_total = cycle_status.get("loop_total", vals.get("Cycle/loop_total"))
         if cyc_loop is not None and cyc_total is not None:
             self._lbl_cyc_loop.setText(f"Loop: {int(float(cyc_loop))} / {int(float(cyc_total))}")
 
-        cyc_pct = vals.get("Cycle/progress_pct")
+        cyc_pct = cycle_status.get("progress_pct", vals.get("iPC_Cyc", vals.get("Cycle/progress_pct")))
         if cyc_pct is not None:
             self._cyc_progress.setValue(int(float(cyc_pct) * 10))
 

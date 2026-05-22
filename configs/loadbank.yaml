@@ -6,8 +6,8 @@ electrical:
   phase: 3
 load_banks:
   primary:
-    model: Simplex 700kW
-    map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-700kW.yaml
+    model: Simplex 750kW
+    map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-750kW.yaml
     ip_address: 127.0.0.1
     port: 502
     unit_id: 1
@@ -22,8 +22,8 @@ load_banks:
 devices:
 - role: primary
   name: Primary
-  model: Simplex 700kW
-  map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-700kW.yaml
+  model: Simplex 750kW
+  map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-750kW.yaml
   connection:
     host: 127.0.0.1
     port: 502
@@ -34,8 +34,8 @@ connection:
   port: 502
   unit_id: 1
 model:
-  selected: Simplex 700kW
-  map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-700kW.yaml
+  selected: Simplex 750kW
+  map_file: C:/Projects/Python/Matrix_v2_retry/configs/loadbanks/Simplex-750kW.yaml
 polling:
   default_status_poll_hz: 2
 safety:
@@ -58,7 +58,7 @@ expose_channels:
   current_l1_alias: lCT_Ldb1
   current_l2_alias: lCT_Ldb2
   current_l3_alias: lCT_Ldb3
-  frequency_alias: LB Frequency
+  frequency_alias: lFQ_Ldb
   power_alias: Power
   error_alias: Error
   fan_alias: lDG_Fan
@@ -66,3 +66,26 @@ expose_channels:
   normal_operation_alias: Normal Operation
   load_available_alias: Load Available
   loadbank_failure_alias: Load Bank Failure
+telemetry_channels:
+- measured_load_alias
+- setpoint_alias
+- ready_alias
+- voltage_ab_alias
+- voltage_bc_alias
+- voltage_ca_alias
+- current_l1_alias
+- current_l2_alias
+- current_l3_alias
+- frequency_alias
+- fan_alias
+internal_channels:
+- faults_alias
+- step_count_alias
+- step_remainder_alias
+- accept_alias
+- power_alias
+- error_alias
+- control_available_alias
+- normal_operation_alias
+- load_available_alias
+- loadbank_failure_alias

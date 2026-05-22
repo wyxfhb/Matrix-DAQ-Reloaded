@@ -1,5 +1,5 @@
 # Author: T. Onkst | Date: 08182025
-# Updated: 04212026 — fixed 7x3 grid layout with source-group panels
+# Updated: 05222026 - fixed 7x3 grid layout with Modbus/LoadBank panels
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ except Exception:
     raise
 
 from .table_alarm_colors import apply_alarm_state_to_row
+from ...core.time_aliases import ABS_TIME_ALIAS, REL_TIME_ALIAS
 
 # ---------------------------------------------------------------------------
 # Grid placement spec:  (row, col, rowspan, colspan, source_group_key)
@@ -37,16 +38,17 @@ from .table_alarm_colors import apply_alarm_state_to_row
 _GRID_SPEC: List[Tuple[int, int, int, int, str]] = [
     (0, 0, 1, 1, "System"),
     (0, 1, 1, 1, "Environment"),
-    (0, 2, 2, 1, "NI Pressure"),
-    (0, 3, 3, 1, "NI Temperature"),
-    (0, 4, 3, 1, "CCP Primary"),
-    (0, 5, 3, 1, "CCP Secondary"),
-    (0, 6, 3, 1, "Modbus"),
+    (0, 2, 2, 1, "Modbus"),
+    (0, 3, 2, 1, "NI Pressure"),
+    (0, 4, 3, 1, "NI Temperature"),
+    (0, 5, 3, 1, "CCP Primary"),
+    (0, 6, 3, 1, "CCP Secondary"),
     (1, 0, 1, 1, "NI Analog Out"),
     (1, 1, 1, 1, "Calculated"),
     (2, 0, 1, 1, "Other"),
     (2, 1, 1, 1, "CAN"),
-    (2, 2, 1, 1, "NI Digital I/O"),
+    (2, 2, 1, 1, "LoadBank"),
+    (2, 3, 1, 1, "NI Digital I/O"),
 ]
 
 # Source map group names expected from orchestrator -> panel key mapping.
@@ -69,20 +71,20 @@ def _source_to_panel(source_group: str) -> str:
         if "secondary" in role or role in ("1", "sec"):
             return "CCP Secondary"
         return "CCP Primary"
-    for key in ("System", "Environment", "Modbus", "Calculated", "CAN", "Other"):
+    for key in ("System", "Environment", "Modbus", "LoadBank", "Calculated", "CAN", "Other"):
         if source_group == key:
             return key
     return "Other"
 
 
 _FALLBACK_SYSTEM = {
-    "Time_Relative_s", "iOT_Warning", "iOT_Alarm", "iOT_AlmSftSdn",
+    REL_TIME_ALIAS, ABS_TIME_ALIAS, "iOT_Warning", "iOT_Alarm", "iOT_AlmSftSdn",
     "iOT_AlmEmgSdn", "iDG_EngRunStp",
 }
 _FALLBACK_PREFIXES = (
     ("EngineTest/", "System"),
     ("Cycle/", "System"),
-    ("LoadBank/", "System"),
+    ("LoadBank/", "LoadBank"),
     ("CAN/", "CAN"),
     ("CCP/", "CCP Primary"),
     ("Modbus/", "Modbus"),

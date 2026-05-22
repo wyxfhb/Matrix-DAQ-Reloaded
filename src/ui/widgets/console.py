@@ -878,7 +878,7 @@ class ConsoleWindow(QMainWindow):
             except Exception:
                 pass
 
-    def _refresh_loadbank_panels(self, vals: Dict[str, Any]) -> None:
+    def _refresh_loadbank_panels(self, vals: Dict[str, Any], cycle_status: Dict[str, Any] | None = None) -> None:
         diag_start = time.perf_counter() if getattr(self, "_perf_diag_enabled", False) else 0.0
         hidden_main_update = 0.0
         ready = self._loadbank_ready_from_values(vals)
@@ -890,7 +890,7 @@ class ConsoleWindow(QMainWindow):
                     hidden_main_update = 1.0
             except Exception:
                 pass
-            main.update_values(vals)
+            main.update_values(vals, cycle_status=cycle_status)
             if hasattr(main, "set_link_status"):
                 main.set_link_status(bool(self._conn_latched), device_ready=ready)
         for w in list(getattr(self, "_lb_operator_windows", []) or []):
@@ -899,7 +899,7 @@ class ConsoleWindow(QMainWindow):
                     continue
                 cw = w.centralWidget()
                 if cw is not None and hasattr(cw, "update_values"):
-                    cw.update_values(vals)
+                    cw.update_values(vals, cycle_status=cycle_status)
                     if hasattr(cw, "set_link_status"):
                         cw.set_link_status(bool(self._conn_latched), device_ready=ready)
             except Exception:
@@ -1075,6 +1075,8 @@ class ConsoleWindow(QMainWindow):
             states = self._last_payload.get("states") if isinstance(self._last_payload, dict) else None
             source_map = self._last_payload.get("source_map") if isinstance(self._last_payload, dict) else None
             display_aliases = self._last_payload.get("display_aliases") if isinstance(self._last_payload, dict) else None
+            cycle_status = self._last_payload.get("cycle_status") if isinstance(self._last_payload, dict) else None
+            cycle_status = cycle_status if isinstance(cycle_status, dict) else None
             meta_start = time.perf_counter() if diag_enabled else 0.0
             ao_meta = self._get_ao_metadata()
             if diag_enabled:
@@ -1101,7 +1103,7 @@ class ConsoleWindow(QMainWindow):
                         monitor_ms = (time.perf_counter() - call_start) * 1000.0
             if isinstance(vals, dict):
                 call_start = time.perf_counter() if diag_enabled else 0.0
-                self._refresh_loadbank_panels(vals)
+                self._refresh_loadbank_panels(vals, cycle_status=cycle_status)
                 if diag_enabled:
                     loadbank_ms = (time.perf_counter() - call_start) * 1000.0
         except Exception:

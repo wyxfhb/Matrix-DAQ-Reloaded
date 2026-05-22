@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+from ..core.time_aliases import REL_TIME_ALIAS, TIME_COLUMNS
+
 
 def find_latest_run(runs_root: Path) -> Path | None:
     if not runs_root.exists():
@@ -62,13 +64,13 @@ def summarize_parquet_file(parquet_path: Path) -> Dict[str, object]:
     out["rows"] = int(len(df))
     out["cols"] = int(len(df.columns))
     out["columns"] = list(map(str, list(df.columns)))
-    if "Time_Relative_s" in df.columns:
+    if REL_TIME_ALIAS in df.columns:
         try:
-            tmin = float(df["Time_Relative_s"].min())
-            tmax = float(df["Time_Relative_s"].max())
+            tmin = float(df[REL_TIME_ALIAS].min())
+            tmax = float(df[REL_TIME_ALIAS].max())
             out["time_range"] = (tmin, tmax)
             # Monotonic check (allow equal)
-            ser = df["Time_Relative_s"]
+            ser = df[REL_TIME_ALIAS]
             monotonic = bool(ser.is_monotonic_increasing)
             out["time_monotonic"] = monotonic
         except Exception:
@@ -145,7 +147,7 @@ def main(argv: List[str] | None = None) -> int:
 
     # Union columns across files
     if union_cols:
-        ordered = ["Time_Relative_s", "Time_Absolute_iso8601"]
+        ordered = list(TIME_COLUMNS)
         others = [c for c in union_cols.keys() if c not in ordered]
         ordered.extend(sorted(others))
         print("\nUnion of columns across files (ordered):")

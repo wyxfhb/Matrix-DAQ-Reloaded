@@ -8,6 +8,7 @@ from collections import deque
 import threading
 import time
 
+from ..core.time_aliases import TIME_ALIASES
 from .base import BasePlugin, PluginStatus
 
 
@@ -229,7 +230,7 @@ class StatisticsPlugin(BasePlugin):
         if self._dynamic_mode:
             stat_suffixes = list(ALLOWED_STATS | {"p2p"})
             for alias, raw in values.items():
-                if alias == "Time_Relative_s":
+                if alias in TIME_ALIASES:
                     continue
                 # Skip any stat outputs to avoid recursion
                 if any(str(alias).endswith(f"_{s}") for s in stat_suffixes):

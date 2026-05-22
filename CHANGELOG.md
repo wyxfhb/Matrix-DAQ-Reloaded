@@ -6,6 +6,32 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - 03/09/2026
 
+### Time telemetry alias cleanup — 05/22/2026
+#### Changed
+- **Core time aliases**: renamed the live elapsed test-time channel from `Time_Relative_s` to `iTM_Tst` and the recorded absolute datestamp column from `Time_Absolute_iso8601` to `iTM_Dat`.
+- **Time alias constants**: core publish, storage, export, statistics, and UI grouping now share canonical time-alias constants so future timer naming changes are not spread across hardcoded strings.
+
+### Cycle telemetry alias cleanup — 05/22/2026
+#### Changed
+- **Cycle operator telemetry**: Cycle now publishes `iDG_Cyc`, `iTM_Cyc`, `iPO_Cyc`, and `iPC_Cyc` by default instead of raw `Cycle/*` status channels, reducing All Channels Table and recording clutter while keeping naming-rule-compliant cycle data.
+- **Cycle UI status payload**: full cycle state, loop, progress, elapsed time, and output echoes now ride in a UI-only `cycle_status` payload for the LoadBank Cycle Control panel rather than recorded telemetry.
+#### Added
+- **Cycle debug telemetry flag**: `cycle.yaml` now supports `telemetry.expose_debug_channels`; enabling it restores raw `Cycle/state`, `Cycle/position_s`, `Cycle/output/<label>`, and related debug channels for deep dives.
+
+### LoadBank telemetry tier cleanup — 05/22/2026
+#### Changed
+- **LoadBank telemetry filtering**: LoadBank now separates operator telemetry from internal diagnostic channels so broadcast telemetry, SQLite recording, and the All Channels Table omit deep-dive indicators such as `Power`, `Error`, `LB Step Count`, `LB Step Remainder`, `Control Available`, `Load Available`, `Load Bank Failure`, and `Normal Operation` during regular use.
+- **LoadBank frequency alias**: renamed the public frequency telemetry alias from `LB Frequency` to `lFQ_Ldb` to match the constrained channel naming convention.
+- **LoadBank measured-load unit metadata**: `lPO_LdbAct` now derives its unit from the model-map status entry bound to `measured_load_alias`, so maps such as Simplex 750kW report `kW` instead of falling back to `%`.
+#### Added
+- **LoadBank telemetry tiers**: `loadbank.yaml` now declares `telemetry_channels` and `internal_channels`, keeping internal aliases available for map binding and future diagnostics without publishing or recording them by default.
+
+### All Channels Table LoadBank panel — 05/22/2026
+#### Added
+- **LoadBank source panel**: the All Channels Table now routes LoadBank plugin telemetry into a dedicated `LoadBank` panel, including operator aliases such as `lPO_LdbAct`, `lPO_LdbStp`, `lDG_Fan`, `lFQ_Ldb`, and `LB Ready`.
+#### Changed
+- **Modbus panel layout**: moved Modbus from column 6 to column 2 with a two-row span, added LoadBank below it, kept columns 0-1 unchanged, and shifted NI/CCP panels one column right.
+
 ### Cycle plugin documentation refresh — 05/22/2026
 #### Changed
 - **Cycle plugin docs**: updated documentation to describe first-column time parsing, multi-output mappings for LoadBank/NI DO/NI AO, `iCycle_Play` safety behavior, multi-series previews, and removal of saved `source.columns.time` from current config.

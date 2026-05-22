@@ -1,6 +1,6 @@
 enabled: true
 required_fields:
-  engine_type: 22L
+  engine_type: 0.97L
   engine_serial_number: '1234'
   test_type: Other Testing
   test_operator: TO

@@ -141,23 +141,73 @@ class LoadBankPlugin(BasePlugin):
             return PluginStatus(ok=False, message="loadbank map_file is missing or unreadable")
         return PluginStatus(ok=True)
 
-    def aliases(self) -> Set[str]:
-        aliases: Set[str] = set()
+    def _configured_alias_keys(self, config_key: str) -> Set[str]:
+        raw = self.config.get(config_key)
+        if not isinstance(raw, list):
+            return set()
+        return {str(item).strip() for item in raw if str(item).strip()}
+
+    def _all_exposed_alias_keys(self) -> Set[str]:
         exposes = self.config.get("expose_channels", {}) or {}
-        for k, v in exposes.items():
-            if not str(k).endswith("_alias"):
-                continue
-            if v:
-                aliases.add(str(v))
+        return {str(k) for k, v in exposes.items() if str(k).endswith("_alias") and v}
+
+    def _aliases_for_keys(self, keys: Set[str]) -> Set[str]:
+        exposes = self.config.get("expose_channels", {}) or {}
+        expose_values = {str(v) for v in exposes.values() if v}
+        aliases: Set[str] = set()
+        for key in keys:
+            if key in exposes and exposes.get(key):
+                aliases.add(str(exposes.get(key)))
+            elif key in expose_values:
+                aliases.add(key)
         return aliases
+
+    def _telemetry_aliases(self) -> Set[str]:
+        keys = self._configured_alias_keys("telemetry_channels")
+        if not keys:
+            keys = self._all_exposed_alias_keys()
+        telemetry_cfg = self.config.get("telemetry", {}) or {}
+        if isinstance(telemetry_cfg, dict) and bool(telemetry_cfg.get("include_internal", False)):
+            keys |= self._configured_alias_keys("internal_channels")
+        return self._aliases_for_keys(keys)
+
+    def _filter_telemetry(self, values: Dict[str, Any]) -> Dict[str, Any]:
+        aliases = self._telemetry_aliases()
+        if not aliases:
+            return dict(values)
+        return {str(k): v for k, v in values.items() if str(k) in aliases}
+
+    def aliases(self) -> Set[str]:
+        return self._telemetry_aliases()
+
+    def _status_unit_for_alias_key(self, alias_key: str, fallback: str) -> str:
+        status = self._map.get("status", {}) or {}
+        if not isinstance(status, dict):
+            return fallback
+        exposes = self.config.get("expose_channels", {}) or {}
+        alias_value = str(exposes.get(alias_key, "") or "")
+        for cfg in status.values():
+            if not isinstance(cfg, dict):
+                continue
+            cfg_alias_key = str(cfg.get("alias_key", "") or "")
+            explicit_alias = str(cfg.get("alias", "") or "")
+            if cfg_alias_key != alias_key and (not alias_value or explicit_alias != alias_value):
+                continue
+            scaling = cfg.get("scaling", {}) or {}
+            if not isinstance(scaling, dict):
+                continue
+            unit = scaling.get("unit")
+            if unit is not None:
+                return str(unit)
+        return fallback
 
     def units(self) -> Dict[str, str]:
         exposes = self.config.get("expose_channels", {}) or {}
         # derive from model map if present
-        measured_unit = "%"
+        measured_unit = "kW"
         setpoint_unit = "%"
         try:
-            measured_unit = str(((self._map.get("status", {}) or {}).get("measured_load", {}) or {}).get("scaling", {}).get("unit", measured_unit))
+            measured_unit = self._status_unit_for_alias_key("measured_load_alias", measured_unit)
         except Exception:
             pass
         try:
@@ -169,6 +219,9 @@ class LoadBankPlugin(BasePlugin):
             exposes.get("setpoint_alias", ""): setpoint_unit,
             exposes.get("step_count_alias", ""): "",
             exposes.get("step_remainder_alias", ""): "kW",
+            exposes.get("ready_alias", ""): "",
+            exposes.get("faults_alias", ""): "",
+            exposes.get("accept_alias", ""): "",
             exposes.get("voltage_ab_alias", ""): "Vrms",
             exposes.get("voltage_bc_alias", ""): "Vrms",
             exposes.get("voltage_ca_alias", ""): "Vrms",
@@ -184,7 +237,8 @@ class LoadBankPlugin(BasePlugin):
             exposes.get("load_available_alias", ""): "",
             exposes.get("loadbank_failure_alias", ""): "",
         }
-        return {k: v for k, v in unit_map.items() if k}
+        telemetry_aliases = self._telemetry_aliases()
+        return {k: v for k, v in unit_map.items() if k and (not telemetry_aliases or k in telemetry_aliases)}
 
     def start(self) -> None:
         self._setpoint_val = 0.0
@@ -301,11 +355,11 @@ class LoadBankPlugin(BasePlugin):
         """Return latest snapshot for real mode or simulated values for sim mode."""
         if self._mode == "real":
             with self._snapshot_lock:
-                return dict(self._snapshot_values)
+                return self._filter_telemetry(self._snapshot_values)
         out = self._compute_sim_step()
         with self._snapshot_lock:
             self._snapshot_values = dict(out)
-        return out
+        return self._filter_telemetry(out)
 
     def _compute_sim_step(self) -> Dict[str, Any]:
         exposes = self.config.get("expose_channels", {}) or {}

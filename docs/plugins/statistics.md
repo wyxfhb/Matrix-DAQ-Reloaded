@@ -1,4 +1,4 @@
-<!-- Author: T. Onkst | Date: 03092026 -->
+<!-- Author: T. Onkst | Date: 05222026 -->
 
 ## Statistics Plugin Specification
 
@@ -17,7 +17,7 @@ Compute snapshot statistics on demand (manual button) or automatically on a trig
 ### Outputs
 - File naming: statistics snapshots remain in JSONL (`stats_snapshots.jsonl`) and are included as a `StatsSnapshots` sheet in Excel export.
 - Columns (wide by default):
-  - Time_Relative_s, Time_Absolute_iso8601
+  - iTM_Tst, iTM_Dat
   - For each selected channel and metric, a column named `<alias>_<metric>` (e.g., `Oil Pressure_mean`)
 - Long format optional: rows with columns [time, channel, metric, value]
  - Excel export (when enabled): one worksheet per statistic. Selected stats each get their own tab (e.g., `mean`, `stdev`, `min`, `max`). Each tab contains Time columns and only the channels that include that statistic. A `Metadata` sheet is also included.

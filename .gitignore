@@ -25,6 +25,9 @@ ENV/
 .DS_Store
 Thumbs.db
 
+# Microsoft Office lock files (created while a workbook is open)
+~$*
+
 # Testing/coverage
 .pytest_cache/
 .mypy_cache/

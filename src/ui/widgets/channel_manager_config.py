@@ -6,6 +6,8 @@ import math
 from pathlib import Path
 from typing import Any, Dict, List, Set
 
+from ...core.time_aliases import TIME_ALIASES
+
 try:
     from PySide6.QtCore import QTimer, Qt
     from PySide6.QtWidgets import (
@@ -475,14 +477,14 @@ class ChannelManagerConfigDialog(QDialog):
                     if isinstance(vals, dict):
                         for k in vals.keys():
                             alias = str(k)
-                            if "/" in alias or alias == "Time_Relative_s":
+                            if "/" in alias or alias in TIME_ALIASES:
                                 continue
                             self._active_aliases.add(alias)
                             got = True
                     if isinstance(units, dict):
                         for k, v in units.items():
                             alias = str(k)
-                            if "/" in alias or alias == "Time_Relative_s":
+                            if "/" in alias or alias in TIME_ALIASES:
                                 continue
                             self._active_units[alias] = str(v or "")
                 except Exception:

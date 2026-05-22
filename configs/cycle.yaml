@@ -8,5 +8,4 @@ outputs:
   type: nidaq_ao
   alias: xIgnition
 - csv_column: louverposition
-  type: nidaq_ao
-  alias: eLOUVERPosition
+  type: loadbank

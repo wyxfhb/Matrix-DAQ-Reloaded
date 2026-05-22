@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
 
+from ..core.time_aliases import TIME_COLUMNS
+
 
 EXCEL_MAX_ROWS: int = 1_048_576
 
@@ -50,7 +52,7 @@ def list_sqlite_files(data_dir: Path) -> List[Path]:
 
 
 def list_parquet_files(data_dir: Path) -> List[Path]:
-    """Legacy: discover Parquet files from old-format runs."""
+    """Discover Parquet files when a run uses Parquet storage."""
     files: List[Path] = []
     files.extend(sorted(data_dir.glob("data.parquet")))
     files.extend(sorted(data_dir.glob("data_*.parquet")))
@@ -79,7 +81,7 @@ def _is_sqlite(path: Path) -> bool:
 # ------------------------------------------------------------------
 
 def get_columns_for_sqlite(path: Path) -> List[str]:
-    base = ["Time_Relative_s", "Time_Absolute_iso8601"]
+    base = list(TIME_COLUMNS)
     others: List[str] = []
     try:
         conn = sqlite3.connect(str(path))
@@ -134,11 +136,11 @@ def read_units_metadata_sqlite(path: Path) -> Dict[str, str]:
 
 
 # ------------------------------------------------------------------
-# Parquet readers (kept for backward compatibility with old runs)
+# Parquet readers
 # ------------------------------------------------------------------
 
 def get_columns_for_parquet(path: Path) -> List[str]:
-    base = ["Time_Relative_s", "Time_Absolute_iso8601"]
+    base = list(TIME_COLUMNS)
     others: List[str] = []
     try:
         import pyarrow.parquet as pq  # type: ignore

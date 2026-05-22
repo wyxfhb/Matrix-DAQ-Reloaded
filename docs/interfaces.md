@@ -1,4 +1,4 @@
-<!-- Author: T. Onkst | Date: 08112025 -->
+<!-- Author: T. Onkst | Date: 05222026 -->
 
 ## Interfaces
 
@@ -23,7 +23,7 @@
 - Snapshot copies under `config_snapshot/` within each run folder
 
 ### Excel Columns (Data sheet)
-- Time_Relative_s, Time_Absolute_iso8601
+- iTM_Tst, iTM_Dat
 - One column per recorded channel (post-scaling units)
 
 

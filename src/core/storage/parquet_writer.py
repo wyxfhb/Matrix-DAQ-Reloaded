@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
+from ..time_aliases import ABS_TIME_ALIAS, REL_TIME_ALIAS, TIME_ALIASES, TIME_COLUMNS
+
 
 @dataclass
 class ParquetWriterSettings:
@@ -30,8 +32,8 @@ class ParquetWriter:
         config_snapshot/
 
     Each written row contains:
-      - Time_Relative_s (float, seconds)
-      - Time_Absolute_iso8601 (string)
+      - iTM_Tst (float, seconds)
+      - iTM_Dat (string)
       - One column per channel alias with numeric/boolean values
 
     If pyarrow is not available, the writer becomes a no-op to avoid
@@ -109,11 +111,11 @@ class ParquetWriter:
                 except Exception:
                     self._observed_units[k] = ""
         row: Dict[str, Any] = {
-            "Time_Relative_s": float(values.get("Time_Relative_s", 0.0)),
-            "Time_Absolute_iso8601": self._iso8601(now_ts),
+            REL_TIME_ALIAS: float(values.get(REL_TIME_ALIAS, 0.0)),
+            ABS_TIME_ALIAS: self._iso8601(now_ts),
         }
         for alias, raw in values.items():
-            if alias in ("Time_Relative_s",):
+            if alias in TIME_ALIASES:
                 continue
             try:
                 if isinstance(raw, bool):
@@ -227,7 +229,7 @@ class ParquetWriter:
                 if not chunk_files:
                     continue
                 # Build union column order across chunks
-                cols_set = set(["Time_Relative_s", "Time_Absolute_iso8601"])
+                cols_set = set(TIME_COLUMNS)
                 for cf in chunk_files:
                     try:
                         cdf = _pd.read_parquet(cf)
@@ -235,9 +237,9 @@ class ParquetWriter:
                             cols_set.add(str(c))
                     except Exception:
                         continue
-                # Preferred column order: Time_Relative_s, Time_Absolute_iso8601, then others sorted
-                other_cols = sorted([c for c in cols_set if c not in ("Time_Relative_s", "Time_Absolute_iso8601")])
-                final_cols = ["Time_Relative_s", "Time_Absolute_iso8601"] + other_cols
+                # Preferred column order: core time columns, then others sorted
+                other_cols = sorted([c for c in cols_set if c not in TIME_ALIASES])
+                final_cols = list(TIME_COLUMNS) + other_cols
                 # Prepare output path
                 try:
                     idx = int(seg_dir.name.split("_")[1])
@@ -333,7 +335,7 @@ class ParquetWriter:
                     total += len(chunks)
                 done = 0
                 # Build union schema columns
-                cols = set(["Time_Relative_s", "Time_Absolute_iso8601"])
+                cols = set(TIME_COLUMNS)
                 for _, chunks in all_chunks:
                     for cf in chunks:
                         try:
@@ -341,7 +343,7 @@ class ParquetWriter:
                             for c in list(cdf.columns): cols.add(str(c))
                         except Exception:
                             continue
-                final_cols = ["Time_Relative_s", "Time_Absolute_iso8601"] + sorted([c for c in cols if c not in ("Time_Relative_s","Time_Absolute_iso8601")])
+                final_cols = list(TIME_COLUMNS) + sorted([c for c in cols if c not in TIME_ALIASES])
                 # Output stem
                 run_stem = f"Data_{self.run_dir.name}"
                 try:

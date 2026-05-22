@@ -63,14 +63,27 @@ Change detection is applied per output target, so unchanged values are not writt
 - Loop boundary: when elapsed time exceeds `loop_len * loops_total`, state transitions to `complete`
 - Multi-loop: elapsed time wraps via modulo for `loops_total > 1`
 
-### Telemetry Channels
-Published every tick by `simulate_step()`:
+### Operator Telemetry, UI Status, and Debug Telemetry
+By default, `simulate_step()` publishes only a small operator telemetry set using normal channel naming rules:
 
 | Channel | Unit | Description |
 |---------|------|-------------|
-| `Cycle/state` | — | State code: 0=idle, 1=running, 2=paused, 3=complete |
+| `iDG_Cyc` | — | Cycle state code: 0=idle, 1=running, 2=paused, 3=complete |
+| `iTM_Cyc` | s | Current position in seconds within the active loop |
+| `iPO_Cyc` | kW | Scheduled Cycle loadbank setpoint target from the CSV |
+| `iPC_Cyc` | % | Overall Cycle progress percentage |
+
+Full Cycle UI status is also published in the telemetry payload as `cycle_status`, outside the recorded `values` dict. The LoadBank operator panel uses that UI-only block for state text, loop count, chart marker, and progress.
+
+`iPO_Cyc` is the Cycle schedule target; `lPO_LdbStp` is the LoadBank plugin's setpoint command echo. They normally match during a healthy loadbank cycle, but can differ if Matrix control is not enabled, command application is blocked/rate-limited, or the cycle has no LoadBank output.
+
+Raw debug channels can be re-enabled for commissioning with `telemetry.expose_debug_channels: true`:
+
+| Debug Channel | Unit | Description |
+|---------------|------|-------------|
+| `Cycle/state` | — | Raw state code: 0=idle, 1=running, 2=paused, 3=complete |
 | `Cycle/position_s` | s | Current position within the active loop |
-| `Cycle/setpoint_kw` | kW | Current load setpoint from schedule, kept for LoadBank compatibility |
+| `Cycle/setpoint_kw` | kW | Current LoadBank target from schedule |
 | `Cycle/loop_current` | — | Current loop number (1-based) |
 | `Cycle/loop_total` | — | Total configured loops |
 | `Cycle/progress_pct` | % | Overall progress across all loops |
@@ -87,6 +100,9 @@ source:
 execution:
   loops_total: 1
   start_with_test: false
+telemetry:
+  expose_operator_aliases: true
+  expose_debug_channels: false
 outputs:
   - csv_column: Load
     type: loadbank
@@ -126,5 +142,6 @@ The `CycleChartWidget` (`src/ui/widgets/cycle_chart.py`) is imported with a `try
 - Missing `cycle_chart.py` on workstation: graceful degradation, panel loads without chart
 
 ### Outputs and Metadata
-- Telemetry channels are recorded at core tick rate (see table above)
+- Operator telemetry aliases are recorded at core tick rate (see table above)
+- Raw `Cycle/*` debug channels are recorded only when `telemetry.expose_debug_channels` is enabled
 - Boundary and loop events logged to console

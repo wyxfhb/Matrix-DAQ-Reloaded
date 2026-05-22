@@ -16,6 +16,13 @@ _STATE_COMPLETE = "complete"
 
 _STATE_INT = {_STATE_IDLE: 0, _STATE_RUNNING: 1, _STATE_PAUSED: 2, _STATE_COMPLETE: 3}
 
+_PUBLIC_TELEMETRY_UNITS = {
+    "iDG_Cyc": "",
+    "iTM_Cyc": "s",
+    "iPO_Cyc": "kW",
+    "iPC_Cyc": "%",
+}
+
 
 class CyclePlugin(BasePlugin):
     id = "Cycle"
@@ -104,33 +111,37 @@ class CyclePlugin(BasePlugin):
         self._paused = False
 
     def aliases(self) -> Set[str]:
-        aliases = {
-            "Cycle/state", "Cycle/position_s", "Cycle/setpoint_kw",
-            "Cycle/loop_current", "Cycle/loop_total", "Cycle/progress_pct",
-            "Cycle/schedule_len_s", "Cycle/elapsed_s",
-        }
-        for out in self._outputs:
-            label = self._output_label(out)
-            if label:
-                aliases.add(f"Cycle/output/{label}")
+        aliases = set(_PUBLIC_TELEMETRY_UNITS) if self._expose_operator_aliases() else set()
+        if self._expose_debug_channels():
+            aliases |= {
+                "Cycle/state", "Cycle/position_s", "Cycle/setpoint_kw",
+                "Cycle/loop_current", "Cycle/loop_total", "Cycle/progress_pct",
+                "Cycle/schedule_len_s", "Cycle/elapsed_s",
+            }
+            for out in self._outputs:
+                label = self._output_label(out)
+                if label:
+                    aliases.add(f"Cycle/output/{label}")
         return aliases
 
     def units(self) -> Dict[str, str]:
-        units = {
-            "Cycle/state": "",
-            "Cycle/position_s": "s",
-            "Cycle/setpoint_kw": "kW",
-            "Cycle/loop_current": "",
-            "Cycle/loop_total": "",
-            "Cycle/progress_pct": "%",
-            "Cycle/schedule_len_s": "s",
-            "Cycle/elapsed_s": "s",
-        }
-        for out in self._outputs:
-            label = self._output_label(out)
-            typ = str(out.get("type", "")).lower()
-            if label:
-                units[f"Cycle/output/{label}"] = "kW" if typ == "loadbank" else ("bool" if typ == "nidaq_do" else "")
+        units = dict(_PUBLIC_TELEMETRY_UNITS) if self._expose_operator_aliases() else {}
+        if self._expose_debug_channels():
+            units.update({
+                "Cycle/state": "",
+                "Cycle/position_s": "s",
+                "Cycle/setpoint_kw": "kW",
+                "Cycle/loop_current": "",
+                "Cycle/loop_total": "",
+                "Cycle/progress_pct": "%",
+                "Cycle/schedule_len_s": "s",
+                "Cycle/elapsed_s": "s",
+            })
+            for out in self._outputs:
+                label = self._output_label(out)
+                typ = str(out.get("type", "")).lower()
+                if label:
+                    units[f"Cycle/output/{label}"] = "kW" if typ == "loadbank" else ("bool" if typ == "nidaq_do" else "")
         return units
 
     # ------------------------------------------------------------------
@@ -280,7 +291,49 @@ class CyclePlugin(BasePlugin):
     # Telemetry
     # ------------------------------------------------------------------
 
+    def _telemetry_cfg(self) -> Dict[str, Any]:
+        cfg = self.config.get("telemetry") or {}
+        return cfg if isinstance(cfg, dict) else {}
+
+    def _expose_operator_aliases(self) -> bool:
+        return bool(self._telemetry_cfg().get("expose_operator_aliases", True))
+
+    def _expose_debug_channels(self) -> bool:
+        return bool(self._telemetry_cfg().get("expose_debug_channels", False))
+
     def simulate_step(self, _vals: Dict[str, Any] | None = None) -> Dict[str, Any]:
+        status = self._build_status_fields()
+        out: Dict[str, Any] = {}
+        if self._expose_operator_aliases():
+            out.update(self._public_telemetry(status))
+        if self._expose_debug_channels():
+            out.update(status.get("debug_values", {}))
+        return out
+
+    def status_snapshot(self) -> Dict[str, Any]:
+        status = self._build_status_fields()
+        return {
+            "state": status["state"],
+            "state_name": status["state_name"],
+            "position_s": status["position_s"],
+            "setpoint_kw": status["setpoint_kw"],
+            "loop_current": status["loop_current"],
+            "loop_total": status["loop_total"],
+            "progress_pct": status["progress_pct"],
+            "schedule_len_s": status["schedule_len_s"],
+            "elapsed_s": status["elapsed_s"],
+            "outputs": dict(status.get("outputs", {})),
+        }
+
+    def _public_telemetry(self, status: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "iDG_Cyc": float(status["state"]),
+            "iTM_Cyc": float(status["position_s"]),
+            "iPO_Cyc": float(status["setpoint_kw"]),
+            "iPC_Cyc": float(status["progress_pct"]),
+        }
+
+    def _build_status_fields(self) -> Dict[str, Any]:
         elapsed = self._elapsed_s()
         # Values must be computed while still running: _current_loop_pos() can set
         # complete first, which would otherwise leave outputs stuck on the prior step.
@@ -296,7 +349,7 @@ class CyclePlugin(BasePlugin):
         loop_cur = self._current_loop_number() if self._state in (_STATE_RUNNING, _STATE_PAUSED, _STATE_COMPLETE) else 0
         total_dur = self._loop_len * max(self._loops_total, 1)
         progress = min(100.0, (elapsed / total_dur * 100.0) if total_dur > 0 else 0.0)
-        out = {
+        debug_values = {
             "Cycle/state": float(_STATE_INT.get(self._state, 0)),
             "Cycle/position_s": round(pos, 2),
             "Cycle/setpoint_kw": round(sp, 2),
@@ -310,8 +363,25 @@ class CyclePlugin(BasePlugin):
             label = self._output_label(mapping)
             col_name = str(mapping.get("csv_column", ""))
             if label and col_name:
-                out[f"Cycle/output/{label}"] = round(float(values.get(col_name, 0.0)), 4)
-        return out
+                debug_values[f"Cycle/output/{label}"] = round(float(values.get(col_name, 0.0)), 4)
+        outputs = {
+            self._output_label(mapping): round(float(values.get(str(mapping.get("csv_column", "")), 0.0)), 4)
+            for mapping in self._outputs
+            if self._output_label(mapping) and mapping.get("csv_column")
+        }
+        return {
+            "state": int(_STATE_INT.get(self._state, 0)),
+            "state_name": self._state,
+            "position_s": round(pos, 2),
+            "setpoint_kw": round(sp, 2),
+            "loop_current": int(loop_cur),
+            "loop_total": int(self._loops_total),
+            "progress_pct": round(progress, 1),
+            "schedule_len_s": round(self._loop_len, 2),
+            "elapsed_s": round(elapsed, 2),
+            "outputs": outputs,
+            "debug_values": debug_values,
+        }
 
     # ------------------------------------------------------------------
     # CSV loader

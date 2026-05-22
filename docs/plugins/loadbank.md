@@ -1,4 +1,4 @@
-<!-- Author: T. Onkst | Date: 04212026 -->
+<!-- Author: T. Onkst | Date: 05222026 -->
 
 ## LoadBank Plugin Specification
 
@@ -14,7 +14,7 @@ Specialized Modbus TCP control/monitor plugin for load banks from multiple suppl
   - Auto-connect and keep-alive after configuration
   - Provide control channels used by UI and Cycle plugin (setpoint in kW)
   - Provide status/measurement channels for monitoring and recording
-  - Recording telemetry: `lDG_Fan`, `lPO_LdbAct`, `lPO_LdbStp`, `lCT_Ldb1/2/3`, `lVO_Ldb1/2/3`
+  - Recording telemetry: `lDG_Fan`, `lPO_LdbAct`, `lPO_LdbStp`, `lCT_Ldb1/2/3`, `lVO_Ldb1/2/3`, `lFQ_Ldb`, and `LB Ready`
 
 ### Model Maps
 - Each supported loadbank model has a model map YAML in `configs/loadbanks/<model>.yaml`
@@ -76,6 +76,11 @@ safety:
 expose_channels:
   measured_load_alias: lPO_LdbAct
   setpoint_alias: lPO_LdbStp
+  ready_alias: LB Ready
+  faults_alias: LB Faults
+  step_count_alias: LB Step Count
+  step_remainder_alias: LB Step Remainder
+  accept_alias: LB Accept
   fan_alias: lDG_Fan
   voltage_ab_alias: lVO_Ldb1
   voltage_bc_alias: lVO_Ldb2
@@ -83,7 +88,36 @@ expose_channels:
   current_l1_alias: lCT_Ldb1
   current_l2_alias: lCT_Ldb2
   current_l3_alias: lCT_Ldb3
-  frequency_alias: LB Frequency
+  frequency_alias: lFQ_Ldb
+  power_alias: Power
+  error_alias: Error
+  control_available_alias: Control Available
+  normal_operation_alias: Normal Operation
+  load_available_alias: Load Available
+  loadbank_failure_alias: Load Bank Failure
+telemetry_channels:
+  - measured_load_alias
+  - setpoint_alias
+  - ready_alias
+  - voltage_ab_alias
+  - voltage_bc_alias
+  - voltage_ca_alias
+  - current_l1_alias
+  - current_l2_alias
+  - current_l3_alias
+  - frequency_alias
+  - fan_alias
+internal_channels:
+  - faults_alias
+  - step_count_alias
+  - step_remainder_alias
+  - accept_alias
+  - power_alias
+  - error_alias
+  - control_available_alias
+  - normal_operation_alias
+  - load_available_alias
+  - loadbank_failure_alias
 ```
 
 ### Operator Control Workflow
@@ -112,7 +146,10 @@ The configuration schema can store a primary and secondary loadbank, but current
 
 ### Outputs and Metadata
 - Metadata includes: model name, map file path, connection details (host, port, unit-id)
-- Recorded channels: `lDG_Fan` (fan boolean), `lPO_LdbAct` (actual power kW), `lPO_LdbStp` (setpoint kW), `lCT_Ldb1/2/3` (phase currents A), `lVO_Ldb1/2/3` (phase voltages V), plus frequency and indicator channels
+- Recorded channels: `lDG_Fan` (fan boolean), `lPO_LdbAct` (actual power kW), `lPO_LdbStp` (setpoint kW), `lCT_Ldb1/2/3` (phase currents A), `lVO_Ldb1/2/3` (phase voltages V), `lFQ_Ldb` (frequency Hz), and `LB Ready` (connection/readiness gate)
+- Internal channels: `Power`, `Error`, `LB Step Count`, `LB Step Remainder`, `Control Available`, `Load Available`, `Load Bank Failure`, and `Normal Operation` are still computed/polled for diagnostics but are not broadcast or recorded by default
+- `Power` is a boolean load/fan-active coil on Simplex maps, while `lPO_LdbAct` is the measured kW register; they are intentionally not treated as equivalent telemetry
+- `LB Faults` and `LB Accept` remain internal unless a future model requires promoting them to operator telemetry
 
 ### Error Conditions
 - Connection failure/timeouts -> auto-retry with backoff
